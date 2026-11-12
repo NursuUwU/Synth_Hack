@@ -24,7 +24,7 @@ from .ranking import CANDIDATE_GAP, RankingConfig
 
 ASSETS = Path(__file__).parent / 'static'
 # Bumped whenever routes change: static files are read per request, Python routes only at start.
-API_VERSION = 2
+API_VERSION = 3
 
 
 class BusyError(ValueError):
@@ -152,6 +152,13 @@ class Workspace:
         self.cases[case.id] = case
         return {'case': self.case_info(case), 'annotation': summary}
 
+    @staticmethod
+    def with_facts(candidate, annotations):
+        # Table columns need the allele frequency, which lives in the annotation, not the score.
+        annotation = annotations.get(candidate['variant_id'], {})
+        return {**candidate, 'facts': {'gnomad_af': annotation.get('gnomad_max_af'),
+                                       'annotation_status': annotation.get('status')}}
+
     def analyze(self, payload):
         case, modified = self.profile(payload)
         if not self.lock.acquire(blocking=False):
@@ -177,7 +184,8 @@ class Workspace:
                     'created_at': report['created_at'], 'modified': modified,
                     'variant_count': report['variant_count'], 'annotation_count': report['annotation_count'],
                     'annotation_coverage': report['annotation_coverage'],
-                    'candidates': report['candidates'][:50], 'warnings': report['warnings'],
+                    'candidates': [self.with_facts(c, report['annotations']) for c in report['candidates'][:50]],
+                    'warnings': report['warnings'],
                     'ranking_guard': report['ranking_guard'],
                     'presentation_guard': report['presentation']['guard'],
                     'config': report['config'], 'input_sha256': report['input_sha256'],

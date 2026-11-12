@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const API_VERSION = 2;  // must match web.API_VERSION
+const API_VERSION = 3;  // must match web.API_VERSION
 const state = {cases: [], token: '', current: null, features: new Map(), report: null,
   previous: new Map(), selected: null, visible: 10, busy: false, searchVersion: 0};
 const statusTitles = {candidate: 'Кандидат найден', uncertain: 'Ведущая гипотеза',
@@ -149,20 +149,80 @@ function rowTone(candidate) {
     return 'tone-contested';
   return '';
 }
-function inheritanceCell(expert) {
-  // Compatibility check, not a graded score: show its meaning instead of 1 / — .
-  const value = expert.score;
-  const [mark, title, cls] = value === null || value === undefined
-    ? ['?', 'Тип наследования болезни не указан в HPO — не проверялось', 'inh-unknown']
-    : expert.moi_compatible === false || value === 0 ? ['✗', 'Не совместимо с типом наследования болезни', 'inh-no']
-    : value >= 1 ? ['✓', 'Генотип совместим с типом наследования болезни', 'inh-yes']
-    : ['≈', `Совместимо частично (${score(value)}): например, вторая копия аллеля или фаза не установлены`, 'inh-partial'];
-  const cell = el('td', `inh-cell ${cls}`, mark); cell.title = title; return cell;
+const CONSEQUENCES = {
+  missense_variant: 'Замена аминокислоты', synonymous_variant: 'Синонимичная замена', stop_gained: 'Преждевременный стоп',
+  stop_lost: 'Потеря стоп-кодона', start_lost: 'Потеря старт-кодона', frameshift_variant: 'Сдвиг рамки',
+  splice_donor_variant: 'Нарушение сплайсинга', splice_acceptor_variant: 'Нарушение сплайсинга',
+  splice_region_variant: 'Область сплайсинга', intron_variant: 'Интрон', '5_prime_UTR_variant': "5'-UTR",
+  '3_prime_UTR_variant': "3'-UTR", upstream_gene_variant: 'Рядом с геном', downstream_gene_variant: 'Рядом с геном',
+  intergenic_variant: 'Межгенный', non_coding_transcript_exon_variant: 'Некодирующий транскрипт'};
+const SEVERITY = ['stop_gained', 'frameshift_variant', 'splice_donor_variant', 'splice_acceptor_variant', 'start_lost',
+  'stop_lost', 'missense_variant', 'splice_region_variant', 'synonymous_variant', '5_prime_UTR_variant',
+  '3_prime_UTR_variant', 'non_coding_transcript_exon_variant', 'intron_variant', 'upstream_gene_variant',
+  'downstream_gene_variant', 'intergenic_variant'];
+const CLINVAR_CLASS = {pathogenic: 'Патогенный', likely_pathogenic: 'Вероятно патогенный', benign: 'Доброкачественный',
+  likely_benign: 'Вероятно доброкачественный', uncertain_significance: 'VUS — значение неизвестно', conflicting: 'Противоречивые оценки'};
+const MODES = {AD: 'доминантное', AR: 'рецессивное', XLD: 'X-сцепл. доминантное', XLR: 'X-сцепл. рецессивное'};
+const stars = n => n > 0 ? '★'.repeat(n) : '';
+function consequence(candidate) {
+  const terms = candidate.experts.molecular.consequences || [];
+  const main = [...terms].sort((a, b) => (SEVERITY.indexOf(a) + 99) % 99 - (SEVERITY.indexOf(b) + 99) % 99)[0];
+  return {text: main ? CONSEQUENCES[main] || main.replaceAll('_', ' ') : 'Не определено', term: main || ''};
+}
+function frequency(candidate) {
+  const facts = candidate.facts || {};
+  if (facts.annotation_status !== 'annotated') return {text: 'нет данных', note: 'Аннотация не получена'};
+  const af = facts.gnomad_af;
+  if (af === null || af === undefined) return {text: 'нет в gnomAD', note: 'Аллель не встречается в gnomAD'};
+  const percent = af * 100;
+  const text = percent >= 0.1 ? `${percent.toFixed(2)} %` : percent >= 0.001 ? `${percent.toFixed(3)} %` : `${percent.toExponential(1)} %`;
+  return {text: text.replace('.', ','), note: af > 0.001 ? 'Выше 0,1 % — слишком часто для доминантной болезни' : 'Редкий вариант'};
+}
+function clinvar(candidate) {
+  const m = candidate.experts.molecular;
+  const best = list => list.reduce((a, b) => (b.review_stars > (a?.review_stars ?? -1) ? b : a), null);
+  const matched = best(m.clinical_assertions || []);
+  if (m.clinical_context_status === 'matched' && matched)
+    return {text: `${CLINVAR_CLASS[m.clinical_status] || matched.classification} ${stars(matched.review_stars)}`, note: 'для этой болезни', tone: m.clinical_status};
+  if (m.clinical_context_status === 'gene_level')
+    return {text: `${CLINVAR_CLASS[m.clinical_status] || ''} ${stars(best(m.gene_level_assertions || [])?.review_stars || 0)}`, note: 'болезнь не указана', tone: m.clinical_status};
+  if (matched) return {text: matched.classification, note: 'без критериев (0 ★)', tone: ''};
+  if ((m.evidence || []).some(e => e.criterion === 'clinical_context')) return {text: 'Есть запись', note: 'для другой болезни', tone: ''};
+  return {text: 'Нет записи', note: '', tone: ''};
+}
+function symptoms(candidate) {
+  const matches = candidate.experts.phenotype.matches || [];
+  // Exact = same or more specific term in the disease profile; near = a close parent term (similarity >= 0.5).
+  const exact = matches.filter(m => m.similarity >= 0.999);
+  const near = matches.filter(m => m.similarity >= 0.5 && m.similarity < 0.999);
+  const label = id => state.features.get(id)?.label || id;
+  const names = [...exact.map(m => label(m.query)), ...near.map(m => `~${label(m.query)}`)];
+  return {count: exact.length, near: near.length, total: state.positiveCount || 0, names};
+}
+function inheritance(candidate) {
+  const expert = candidate.experts.inheritance; const value = expert.score;
+  const modes = (expert.modes || []).map(m => MODES[m] || m).join(' / ');
+  if (value === null || value === undefined) return {mark: '?', cls: 'inh-unknown', text: 'не указано', title: 'Тип наследования болезни не указан в HPO'};
+  if (expert.moi_compatible === false || value === 0) return {mark: '✗', cls: 'inh-no', text: modes || 'не совместимо', title: expert.evidence?.[0]?.text || 'Не совместимо'};
+  if (value >= 1) return {mark: '✓', cls: 'inh-yes', text: modes, title: 'Генотип совместим с типом наследования'};
+  return {mark: '≈', cls: 'inh-partial', text: modes, title: expert.evidence?.[0]?.text || 'Совместимо частично'};
+}
+function clipCell(text, target, candidate, title) {
+  // Truncated text: clicking it opens this candidate and scrolls smoothly to the matching section.
+  const cell = el('td', 'clip-cell'); const span = el('button', 'clip', text);
+  span.type = 'button'; span.title = title || text;
+  span.addEventListener('click', event => { event.stopPropagation(); openCandidate(candidate, target); });
+  cell.append(span); return cell;
+}
+function openCandidate(candidate, target) {
+  state.selected = candidate.variant_id; renderRanking(); renderDetails(candidate);
+  if (!target) return;
+  const section = document.getElementById(target) || $('details');
+  section.scrollIntoView({behavior: 'smooth', block: 'start'});
+  section.classList.remove('flash'); void section.offsetWidth; section.classList.add('flash');
 }
 function renderRanking() {
   $('ranking').replaceChildren();
-  const showDelta = state.previous.size > 0;
-  $('delta-head').hidden = !showDelta;
   for (const candidate of state.report.candidates.slice(0, state.visible)) {
     const selected = candidate.variant_id === state.selected;
     const row = el('tr', `${rowTone(candidate)} ${selected ? 'selected' : ''}`.trim());
@@ -170,20 +230,58 @@ function renderRanking() {
     const name = el('td'); const button = el('button', 'gene-button', candidate.gene || 'Ген не определён');
     button.setAttribute('aria-label', `Доказательства: ${candidate.gene || candidate.variant_id}, место ${candidate.rank}`);
     button.setAttribute('aria-pressed', String(selected));
-    name.append(button, el('span', 'variant-id', candidate.variant_id)); row.append(name, scoreCell(candidate.score, true));
-    for (const expert of ['phenotype', 'molecular']) row.append(scoreCell(candidate.experts[expert].score));
-    row.append(inheritanceCell(candidate.experts.inheritance));
-    if (showDelta) {
-      const old = state.previous.get(candidate.variant_id); const delta = old === undefined ? null : old - candidate.rank;
-      const cell = el('td', delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : '',
-        delta === null ? 'новый' : delta === 0 ? '·' : `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}`);
-      cell.title = 'Изменение места по сравнению с предыдущим расчётом этого случая'; row.append(cell);
-    }
-    row.addEventListener('click', () => { state.selected = candidate.variant_id; renderRanking(); renderDetails(candidate); });
+    name.append(button, el('span', 'variant-id', candidate.variant_id)); row.append(name);
+    const hom = ['1/1', '1|1'].includes(candidate.genotype);
+    const genotype = el('td', 'small-cell', hom ? 'гомо' : 'гетеро'); genotype.title = `${candidate.genotype}: ${hom ? 'вариант в обеих копиях' : 'вариант в одной копии'}`;
+    row.append(genotype);
+    const effect = consequence(candidate); const effectCell = el('td', 'small-cell', effect.text); effectCell.title = effect.term; row.append(effectCell);
+    const freq = frequency(candidate); const freqCell = el('td', 'small-cell', freq.text); freqCell.title = freq.note; row.append(freqCell);
+    const cv = clinvar(candidate); const cvCell = el('td', `small-cell cv-${cv.tone || 'none'}`);
+    cvCell.append(el('span', 'cv-class', cv.text.trim())); if (cv.note) cvCell.append(el('span', 'cell-note', cv.note));
+    row.append(cvCell);
+    row.append(clipCell(candidate.disease_name || '—', 'sec-why', candidate,
+      `${candidate.disease_name || ''} ${candidate.disease_id || ''}`.trim()));
+    const sym = symptoms(candidate);
+    row.append(clipCell(`${sym.count} из ${sym.total}${sym.names.length ? ': ' + sym.names.join(', ') : ''}`, 'sec-phenotype', candidate,
+      sym.names.join('\n') || 'Совпадений нет'));
+    const inh = inheritance(candidate); const inhCell = el('td', `small-cell ${inh.cls}`);
+    inhCell.append(el('span', 'inh-mark', inh.mark), document.createTextNode(` ${inh.text}`)); inhCell.title = inh.title;
+    row.append(inhCell, scoreCell(candidate.score, true));
+    row.addEventListener('click', () => openCandidate(candidate));
     $('ranking').append(row);
   }
   $('shown-count').textContent = `${Math.min(state.visible, state.report.candidates.length)} из ${state.report.variant_count}`;
   $('more').hidden = state.visible >= state.report.candidates.length;
+}
+function whyHere(candidate) {
+  // One or two arguments for the place and the main limitation, from the same evidence.
+  const pros = [], cons = []; const e = candidate.experts; const sym = symptoms(candidate);
+  const cv = clinvar(candidate); const freq = frequency(candidate);
+  if ((e.phenotype.score ?? 0) >= 0.5) pros.push(`совпало ${sym.count} из ${sym.total} признаков${sym.near ? ` (+${sym.near} близких)` : ''}`);
+  else cons.push(`слабое совпадение симптомов (${sym.count} из ${sym.total})`);
+  if (['pathogenic', 'likely_pathogenic'].includes(cv.tone)) pros.push(`ClinVar: ${cv.text.trim().toLowerCase()} — ${cv.note}`);
+  if ((e.molecular.curated_evidence || []).length || (e.molecular.literature_applied || []).length) pros.push('опубликован функциональный эффект этого аллеля');
+  if (freq.text === 'нет в gnomAD' || (candidate.facts?.gnomad_af ?? 1) < 0.0001) pros.push(`вариант редкий (${freq.text})`);
+  if (e.inheritance.moi_compatible === false) cons.push('не совместим с типом наследования');
+  if (cv.text === 'Нет записи' || cv.note === 'для другой болезни') cons.push('нет записи ClinVar для этой болезни');
+  else if (cv.tone === 'uncertain_significance') cons.push('значение варианта по ClinVar неизвестно');
+  if (!cons.length) cons.push('семья и фаза вариантов не проверены');
+  return {pros: pros.slice(0, 2), cons: cons.slice(0, 1)};
+}
+function sourceLinks(candidate) {
+  const links = new Map(); const [chrom, pos, ref, alt] = candidate.variant_id.split(':');
+  const add = (label, url) => { if (!links.has(label)) links.set(label, url); };
+  for (const evidence of candidate.evidence || []) {
+    if (evidence.source.startsWith('ClinVar:') && evidence.url) add(evidence.source.replace('ClinVar:', 'ClinVar '), evidence.url);
+    if (evidence.source.startsWith('LIT:') || evidence.source.startsWith('Literature:')) add(evidence.source.replace(/^(LIT|Literature):/, ''), evidence.url || '');
+  }
+  add('gnomAD', `https://gnomad.broadinstitute.org/variant/${chrom.replace('chr', '')}-${pos}-${ref}-${alt}?dataset=gnomad_r4`);
+  const id = candidate.disease_id || '';
+  if (id.startsWith('OMIM:')) add(id, `https://omim.org/entry/${id.slice(5)}`);
+  if (id.startsWith('ORPHA:')) add(id, `https://www.orpha.net/en/disease/detail/${id.slice(6)}`);
+  if (id) add('HPO', `https://hpo.jax.org/browse/disease/${id}`);
+  add('Ensembl VEP', `https://rest.ensembl.org/vep/human/region/${chrom.replace('chr', '')}:${pos}-${pos}/${alt}?content-type=application/json`);
+  return [...links];
 }
 function evidenceSection(title, expert, weight) {
   const section = el('section', 'detail-section'); const heading = el('h4', '', title);
@@ -217,16 +315,29 @@ function renderDetails(candidate) {
     candidate.experts.molecular.selected_transcript,
     ...(candidate.experts.molecular.consequences || [])]) if (value) facts.append(el('span', '', value));
   container.append(heading, disease, facts);
-  for (const [key, label] of [['phenotype', 'Фенотип и противоречия'], ['molecular', 'Молекулярные данные'], ['inheritance', 'Наследование']])
-    container.append(evidenceSection(label, candidate.experts[key], state.report.config.weights[key]));
-  if (candidate.experts.molecular.scoring_policy === 'context_v2_max_not_sum') {
-    container.append(el('p', 'helper', 'Молекулярная оценка использует максимум поддержки от прогноза, опубликованного функционального эффекта и классификации для конкретной болезни. Связанные свидетельства не суммируются; редкость учитывается отдельно. Балл эвристический.'));
+  const why = whyHere(candidate); const whySection = el('section', 'detail-section why'); whySection.id = 'sec-why';
+  whySection.append(el('h4', '', 'Почему на этом месте'));
+  const list = el('ul', 'why-list');
+  why.pros.forEach(text => list.append(el('li', 'pro', text))); why.cons.forEach(text => list.append(el('li', 'con', text)));
+  const e = candidate.experts; const inh = inheritance(candidate);
+  whySection.append(list, el('p', 'helper sub-scores',
+    `Итог ${score(candidate.score)} = фенотип ${score(e.phenotype.score)} × ${state.report.config.weights.phenotype}`
+    + ` + молекулярные ${score(e.molecular.score)} × ${state.report.config.weights.molecular}`
+    + ` + наследование ${score(e.inheritance.score)} × ${state.report.config.weights.inheritance} (${inh.mark})`));
+  const sources = el('div', 'source-links'); sources.append(el('span', 'source-title', 'Источники:'));
+  for (const [label, url] of sourceLinks(candidate)) {
+    if (url) { const link = el('a', '', label); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; sources.append(link); }
+    else sources.append(el('span', '', label));
+  }
+  whySection.append(sources); container.append(whySection);
+  for (const [key, label, id] of [['phenotype', 'Фенотип и противоречия', 'sec-phenotype'], ['molecular', 'Молекулярные данные', 'sec-molecular'], ['inheritance', 'Наследование', 'sec-inheritance']]) {
+    const section = evidenceSection(label, candidate.experts[key], state.report.config.weights[key]); section.id = id; container.append(section);
   }
   if (candidate.missing.length) {
     const section = el('section', 'detail-section'); section.append(el('h4', '', 'Чего не хватает для проверки'));
-    const list = el('ul', 'missing-list');
-    candidate.missing.forEach(text => list.append(el('li', '', missingTranslations[text] || text)));
-    section.append(list); container.append(section);
+    const missing = el('ul', 'missing-list');
+    candidate.missing.forEach(text => missing.append(el('li', '', missingTranslations[text] || text)));
+    section.append(missing); container.append(section);
   }
 }
 function renderReport() {
@@ -261,7 +372,8 @@ function renderReport() {
   if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
   if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `спорные: разрыв с первым меньше ${gap} (показаны до 5)` : 'ведущая гипотеза с неполным подтверждением']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
-  $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'));
+  $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'),
+    el('span', 'legend-item', 'Обрезанный текст кликабелен — откроет доказательства'));
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }
   $('guard-status').textContent = report.ranking_guard.status === 'passed' && report.presentation_guard.status === 'passed'
     ? 'Проверка целостности расчёта и ссылок на доказательства пройдена. Клиническую достоверность эта проверка не устанавливает.'
@@ -278,6 +390,7 @@ async function analyze() {
   showError(''); setBusy(true);
   const payload = {case_id: state.current.id, positive: [], excluded: [], inheritance: $('inheritance').value || null};
   state.inheritanceUsed = $('inheritance').value;
+  state.positiveCount = payload.positive.length;
   for (const [id, f] of state.features) if (f.mode !== 'ignored') payload[f.mode].push(id);
   try {
     const report = await api('/api/analyze', payload);

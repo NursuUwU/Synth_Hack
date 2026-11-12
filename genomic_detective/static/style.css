@@ -40,4 +40,29 @@
 .legend-item i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #d6e1dc}
 .legend-item i.tone-best{background:#e3f3e8}
 .legend-item i.tone-contested{background:#fff1cf}
+/* Wide report table: text cells clip with ellipsis; clicking the clipped text opens evidence. */
+.ranking-card table{table-layout:auto}
+.small-cell{font-size:10px;white-space:nowrap}
+.cell-note{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.cv-pathogenic .cv-class,.cv-likely_pathogenic .cv-class{color:var(--red);font-weight:600}
+.cv-benign .cv-class,.cv-likely_benign .cv-class{color:var(--green)}
+.cv-uncertain_significance .cv-class,.cv-conflicting .cv-class{color:var(--gold)}
+.cv-none .cv-class{color:#9aa8a6}
+.clip-cell{max-width:170px}
+.clip{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:0;padding:0;
+  font:inherit;font-size:10px;color:var(--ink);text-align:left;cursor:pointer;border-bottom:1px dotted #b8c7c1}
+.clip:hover{color:var(--green)}
+.inh-mark{font-weight:700}
+.why{background:#f8fbf9;border-radius:8px;padding:14px 16px;margin-top:6px;border-top:0}
+.why-list{list-style:none;padding:0;margin:0 0 8px}
+.why-list li{font-size:11px;line-height:1.7;padding-left:18px;position:relative}
+.why-list li.pro:before{content:'+';position:absolute;left:2px;color:var(--green);font-weight:700}
+.why-list li.con:before{content:'−';position:absolute;left:2px;color:var(--gold);font-weight:700}
+.sub-scores{font-size:10px;margin:6px 0}
+.source-links{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:10px}
+.source-links a,.source-links span{border:1px solid var(--line);border-radius:5px;padding:3px 7px;background:#fff}
+.source-links .source-title{border:0;background:none;padding:0;color:var(--muted)}
+.detail-section{scroll-margin-top:16px}
+@keyframes flash{from{box-shadow:0 0 0 3px #2f6f9f66}to{box-shadow:0 0 0 3px #2f6f9f00}}
+.flash{animation:flash 1.6s ease-out;border-radius:8px}
 
