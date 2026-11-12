@@ -20,10 +20,14 @@ CONSEQUENCE_SUPPORT = {
 }
 
 
-def evidence(subject: str, criterion: str, text: str, source: str, basis: str) -> dict:
+def evidence(subject: str, criterion: str, text: str, source: str, basis: str, refs=None) -> dict:
+    # refs name literature behind the applied rule (keys of the UI reference list); not part of the id.
     identity = f'{subject}|{criterion}|{text}|{source}'
-    return {'id': 'ev_' + hashlib.sha256(identity.encode()).hexdigest()[:16],
+    item = {'id': 'ev_' + hashlib.sha256(identity.encode()).hexdigest()[:16],
             'criterion': criterion, 'text': text, 'source': source, 'basis': basis}
+    if refs:
+        item['refs'] = list(refs)
+    return item
 
 
 def _literature_url(entry: dict) -> str:
@@ -254,7 +258,8 @@ class MolecularExpert:
             frequency_score = 1.0 if frequency < 0.0001 else 0.5 if frequency < 0.001 else 0.0
             items.append(evidence(subject, 'population_frequency',
                 f'Максимальная доступная частота gnomAD: {frequency:.6g}. '
-                'Редкость не является самостоятельным доказательством патогенности.', source, 'database'))
+                'Редкость не является самостоятельным доказательством патогенности.', source, 'database',
+                ['gudmundsson2022']))
         significance = sorted({value.lower().replace('_', ' ')
                                for record in annotation.get('clinical', []) for value in record['significance']})
         clinical_status, clinical_score = clinical_support(significance)
@@ -342,7 +347,7 @@ class InheritanceExpert:
             # P/LP alleles bypass frequency limits, as in Exomiser (Jacobsen et al. 2022),
             # but still need a genotype compatible with the mode.
             return af is None or af <= limit or whitelisted
-        options, explanations = [], []
+        options, explanations, refs = [], [], []
         if stated and {'AD', 'AR'} & set(modes) and stated not in modes:
             # The clinician's stated mode excludes hypotheses described only with other modes.
             text = (f'Заданный тип наследования {stated} не описан для этой болезни '
@@ -359,12 +364,16 @@ class InheritanceExpert:
             explanations.append(
                 ('Генотип совместим с AD.' if variant.heterozygous else 'Гомозигота для AD требует проверки.')
                 if ok else f'Частота {af:.4g} выше порога {MOI_MAX_AF["AD"]} для AD.')
+            if not ok:
+                refs.append('jacobsen2022')
         if 'AR' in modes:
             if variant.homozygous_alt:
                 ok = rare(MOI_MAX_AF['AR_hom'])
                 options.append((1.0 if ok else 0.0, ok))
                 explanations.append('Гомозигота совместима с AR.' if ok else
                                     f'Частота {af:.4g} выше порога {MOI_MAX_AF["AR_hom"]} для гомозиготы AR.')
+                if not ok:
+                    refs.append('jacobsen2022')
             elif second_allele and rare(MOI_MAX_AF['AR_comphet']):
                 options.append((0.6, True))
                 explanations.append('В гене есть второй редкий вариант: компаунд-гетерозиготность AR возможна, '
@@ -372,6 +381,7 @@ class InheritanceExpert:
             else:
                 options.append((0.0, False))
                 explanations.append('Одиночная гетерозигота без второго редкого аллеля в гене не объясняет AR-болезнь.')
+                refs.extend(['xi2025', 'cooperstein2025'])
         if not options:
             return {'score': None, 'modes': modes, 'evidence': [], 'moi_compatible': True,
                     'missing': ['Inheritance model is outside the autosomal baseline']}
@@ -381,8 +391,10 @@ class InheritanceExpert:
         if whitelisted and af is not None and af > MOI_MAX_AF['AD']:
             text += (f' Частота {af:.4g} не исключает гипотезу: аллель имеет сопоставленную запись ClinVar '
                      'P/LP с ≥2 звёздами (исключение ClinVar whitelist, как в Exomiser).')
+            refs.extend(['jacobsen2022', 'cooperstein2025'])
         if not compatible:
             text += ' Гипотеза не проходит фильтр совместимости с типом наследования и не может быть выдана как прогноз.'
         return {'score': score, 'modes': modes, 'moi_compatible': compatible, 'evidence': [evidence(
-            variant.id + ':' + str(disease_id), 'inheritance', text, f'HPO:{disease_id}', 'compatibility')],
+            variant.id + ':' + str(disease_id), 'inheritance', text, f'HPO:{disease_id}', 'compatibility',
+            list(dict.fromkeys(refs)))],
             'missing': ['Family segregation and phase unavailable']}

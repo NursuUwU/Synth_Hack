@@ -152,7 +152,7 @@ class MolecularKnowledge:
                     'Число звёзд не является вероятностью патогенности.')
             if assertion['review_stars'] == 0:
                 text += ' Без предоставленных критериев классификация не добавляет баллы в этой версии.'
-            item = evidence(subject, 'clinical_assertion', text, assertion['source'], 'database')
+            item = evidence(subject, 'clinical_assertion', text, assertion['source'], 'database', ['landrum2018'])
             item['url'] = assertion['url']
             items.append(item)
         gene_level = []
@@ -173,7 +173,8 @@ class MolecularKnowledge:
                         f"заболевание не конкретизировано ({'; '.join(assertion['conditions'])}); "
                         f"review status: {assertion['review_status']} ({assertion['review_stars']} зв.). "
                         f'Пониженная поддержка {GENE_LEVEL_CLINICAL_SUPPORT} на уровне гена: '
-                        'соответствие выбранной болезни ClinVar не устанавливает.', assertion['source'], 'database')
+                        'соответствие выбранной болезни ClinVar не устанавливает.', assertion['source'], 'database',
+                        ['landrum2018'])
                     item['url'] = assertion['url']
                     items.append(item)
             else:
@@ -238,7 +239,7 @@ class MolecularKnowledge:
             validity = gene_disease_validity(gene, disease_id)
             if validity:
                 items.append(evidence(subject, 'gene_disease_validity', validity['text'],
-                                      'GenCC:' + gene, 'database'))
+                                      'GenCC:' + gene, 'database', ['strande2017', 'gencc']))
                 if not validity['exact']:
                     missing.append('GenCC gene-disease validity for the selected disease ID not found')
         frequency = base['components']['frequency']
@@ -251,7 +252,7 @@ class MolecularKnowledge:
             items.append(evidence(subject, 'population_frequency',
                 'Аллель не найден в данных gnomAD, возвращённых VEP 116 при успешной аннотации. '
                 f'Слабый довод редкости ({ABSENT_FROM_GNOMAD_RARITY}); отсутствие в базе не является '
-                'доказательством патогенности.', 'VEP:' + variant.cache_key, 'database'))
+                'доказательством патогенности.', 'VEP:' + variant.cache_key, 'database', ['gudmundsson2022']))
         support_block = max(0.55 * consequence, functional, clinical)
         base.update(score=support_block + 0.15 * frequency,
             components={'consequence': consequence, 'functional': functional,

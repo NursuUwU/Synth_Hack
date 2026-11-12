@@ -35,6 +35,29 @@ const warningTranslations = {
   'Phenotype was explicitly overridden for this run; not the original case profile.': 'Для этого расчёта использован изменённый HPO-профиль.',
   'The organizer marked the phenotype profile as truncated.': 'Организаторы пометили фенотипический профиль как сокращённый.',
   'User-uploaded case: variants absent from the local cache were annotated online (Ensembl VEP, ClinVar); input is not organizer data.': 'Загруженный случай: новые варианты аннотированы онлайн (Ensembl VEP, ClinVar).'};
+// Literature behind the applied rules: shown as superscript links, like citations in a paper.
+const REFERENCES = [
+  ['jacobsen2022', 'Jacobsen JOB et al. Phenotype-driven approaches to enhance variant prioritization and diagnosis of rare disease. Hum Mutat 2022;43:1071–1081', 'https://doi.org/10.1002/humu.24380'],
+  ['cooperstein2025', 'Cooperstein IB et al. An optimized variant prioritization process for rare disease diagnostics: recommendations for Exomiser and Genomiser. medRxiv 2025', 'https://doi.org/10.1101/2025.04.18.25326061'],
+  ['xi2025', 'Xi AMC et al. Clinical and data-driven optimization of Genomiser for rare disease patients. Brief Bioinform 2025;26:bbaf475', 'https://doi.org/10.1093/bib/bbaf475'],
+  ['gudmundsson2022', 'Gudmundsson S et al. Variant interpretation using population databases: lessons from gnomAD. Hum Mutat 2022;43:1012–1030', 'https://doi.org/10.1002/humu.24309'],
+  ['landrum2018', 'Landrum MJ et al. ClinVar: improving access to variant interpretations and supporting evidence. Nucleic Acids Res 2018;46:D1062–D1067', 'https://pubmed.ncbi.nlm.nih.gov/29165669/'],
+  ['strande2017', 'Strande NT et al. Evaluating the clinical validity of gene-disease associations. Am J Hum Genet 2017;100:895–906', 'https://pubmed.ncbi.nlm.nih.gov/28552198/'],
+  ['gencc', 'The Gene Curation Coalition (GenCC): gene-disease validity curations', 'https://thegencc.org/'],
+  ['richards2015', 'Richards S et al. Standards and guidelines for the interpretation of sequence variants (ACMG/AMP). Genet Med 2015;17:405–424', 'https://pubmed.ncbi.nlm.nih.gov/25741868/'],
+  ['mclaren2016', 'McLaren W et al. The Ensembl Variant Effect Predictor. Genome Biol 2016;17:122', 'https://pubmed.ncbi.nlm.nih.gov/27268795/'],
+  ['kohler2009', 'Köhler S et al. Clinical diagnostics in human genetics with semantic similarity searches in ontologies. Am J Hum Genet 2009;85:457–464', 'https://pubmed.ncbi.nlm.nih.gov/19800049/'],
+];
+const REF_INDEX = new Map(REFERENCES.map(([key, text, url], i) => [key, {n: i + 1, text, url}]));
+function citations(keys) {
+  const sup = el('sup', 'cite');
+  for (const key of keys || []) {
+    const ref = REF_INDEX.get(key); if (!ref) continue;
+    const link = el('a', '', `[${ref.n}]`); link.href = ref.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    link.title = ref.text; link.addEventListener('click', event => event.stopPropagation()); sup.append(link);
+  }
+  return sup;
+}
 function translateWarning(text) {
   if (warningTranslations[text]) return warningTranslations[text];
   let match = text.match(/^Inheritance mode set by the user: (\w+);/);
@@ -347,7 +370,7 @@ function evidenceSection(title, expert, weight) {
   const list = el('ul', 'evidence-list');
   for (const evidence of expert.evidence || []) {
     const item = el('li', evidence.criterion === 'phenotype_conflict' ? 'conflict' : '');
-    item.append(el('span', '', evidence.text));
+    item.append(el('span', '', evidence.text)); if (evidence.refs) item.append(citations(evidence.refs));
     const source = el('span', 'evidence-source');
     const basis = {database: 'Справочник', prediction: 'Предсказание', compatibility: 'Совместимость',
       experimental_literature: 'Опубликованный эксперимент', literature_context: 'Литература', literature: 'Литература'}[evidence.basis] || evidence.basis;
@@ -480,6 +503,8 @@ $('hpo-search').addEventListener('input', () => {
     } catch (error) { if (version === state.searchVersion) showError(error.message); }
   }, 220);
 });
+// Column headers: one-line rationale on hover and a citation mark, nothing else on the table.
+for (const th of document.querySelectorAll('th[data-refs]')) th.append(citations(th.dataset.refs.split(' ')));
 $('case-select').addEventListener('change', event => selectCase(event.target.value));
 $('inheritance').addEventListener('change', markEdited);
 $('upload-toggle').addEventListener('click', () => { $('upload-form').hidden = !$('upload-form').hidden; });

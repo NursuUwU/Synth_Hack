@@ -94,3 +94,9 @@
 .why-list li.vs{color:#4f5f5b;margin-top:4px}
 .why-list li.vs:before{content:'⇄';position:absolute;left:0;color:#2f6f9f}
 .gene-repeat{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+/* Citations: small superscript links, quiet until hovered. */
+.cite{font-size:8px;line-height:0;margin-left:1px;vertical-align:super}
+.cite a{color:#7f9a90;text-decoration:none;margin-left:1px}
+.cite a:hover{color:var(--green);text-decoration:underline}
+th .cite a{color:#9fb2ab}
+
