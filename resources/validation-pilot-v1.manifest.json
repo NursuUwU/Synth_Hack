@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "archive": "validation-pilot-v1.zip",
+  "bytes": 517424,
+  "sha256": "be5c7126b5f6caaa643b70d49239b4cd8936670dfe91a4f2454c5d4d711d4ec6",
+  "files": {
+    "manifest.json": {
+      "bytes": 2444,
+      "sha256": "b9234b8e4efa4c5d62d975f9d7ff13d582104753ec16b819183a7fc4a4f7fbf8"
+    },
+    "inputs.json": {
+      "bytes": 1394685,
+      "sha256": "db6a4ca321e58a6ae5c27e34911e21dd8f663ec6dd9d4eb801e3a7a138426a4d"
+    },
+    "labels.json": {
+      "bytes": 31984,
+      "sha256": "cb06347ca92b81ca9e8551a576f0bf0d6abf9d273de157ec3768c73a07df05a2"
+    },
+    "selection-audit.json": {
+      "bytes": 1680854,
+      "sha256": "e0db5a656bc0b6185b30f303fb5553bbb6752c0f0b1a7e4e68f59faa64db6683"
+    },
+    "annotations.json": {
+      "bytes": 2663066,
+      "sha256": "986d3007a6ba82fdf6b3f63ca737dd57500a16db82935864f2ded8ec4492c514"
+    },
+    "clinical-snapshot.json": {
+      "bytes": 46011,
+      "sha256": "b7a83b63642e184e36e22bf8dede69b5c15c7cf2c282d7502058a33f799c2405"
+    },
+    "clinvar-dc979cc9ff59119bdc27a7b01f9e4266c4618ade570f1c89011eb6f7aa4738ae.xml": {
+      "bytes": 87681,
+      "sha256": "dc979cc9ff59119bdc27a7b01f9e4266c4618ade570f1c89011eb6f7aa4738ae"
+    },
+    "clinvar-e17ac7738ceb422eb02142d97e64b5b0e6b5e38006c117058d8df7f1192b78bd.xml": {
+      "bytes": 927142,
+      "sha256": "e17ac7738ceb422eb02142d97e64b5b0e6b5e38006c117058d8df7f1192b78bd"
+    }
+  },
+  "scope": "Frozen public external semi-synthetic pilot; inputs and annotations, not precomputed rankings",
+  "license": "phenopacket-store-LICENSE",
+  "phenopacket_release": "0.1.27"
+}

@@ -26,3 +26,5 @@ jobs:
         run: python -m unittest discover -s tests
       - name: Start from bundled data and analyze every case
         run: python scripts/smoke_clean_checkout.py
+      - name: Reproduce frozen external pilot offline
+        run: python scripts/validate_external.py --bundled --output outputs/ci-external --expect validation/results/external-v1.json
