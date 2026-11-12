@@ -230,7 +230,11 @@ function renderRanking() {
     const name = el('td'); const button = el('button', 'gene-button', candidate.gene || 'Ген не определён');
     button.setAttribute('aria-label', `Доказательства: ${candidate.gene || candidate.variant_id}, место ${candidate.rank}`);
     button.setAttribute('aria-pressed', String(selected));
-    name.append(button, el('span', 'variant-id', candidate.variant_id)); row.append(name);
+    name.append(button, el('span', 'variant-id', candidate.variant_id));
+    // The table doubles as the gene ranking: repeated genes are marked instead of a separate list.
+    const order = state.report.candidates.filter(c => c.gene && c.gene === candidate.gene && c.rank <= candidate.rank).length;
+    if (order > 1) name.append(el('span', 'gene-repeat', `${order}-й вариант гена`));
+    row.append(name);
     const hom = ['1/1', '1|1'].includes(candidate.genotype);
     const genotype = el('td', 'small-cell', hom ? 'гомо' : 'гетеро'); genotype.title = `${candidate.genotype}: ${hom ? 'вариант в обеих копиях' : 'вариант в одной копии'}`;
     row.append(genotype);
@@ -320,19 +324,6 @@ function renderContext(report) {
     const note = el('p', 'helper', `Разметка организаторов (Phenopacket, ${known.disease_id}). Ответ прочитан после расчёта и в рейтинг не передаётся.`);
     if (report.modified) note.textContent += ' Профиль изменён — сравнение относится к изменённому профилю.';
     box.append(note);
-  }
-  const genes = $('gene-ranking'); genes.replaceChildren();
-  if (report.genes?.length) {
-    genes.append(el('span', 'gene-title', 'Рейтинг генов:'));
-    for (const g of report.genes.slice(0, 10)) {
-      const chip = el('button', 'gene-chip', `${g.rank}. ${g.gene} ${score(g.score)}${g.variants > 1 ? ` · ${g.variants} вар.` : ''}`);
-      chip.type = 'button'; chip.title = `${g.disease_name || ''} — лучший вариант ${g.best_variant}`;
-      chip.addEventListener('click', () => {
-        const candidate = report.candidates.find(c => c.variant_id === g.best_variant);
-        if (candidate) openCandidate(candidate, 'sec-why');
-      });
-      genes.append(chip);
-    }
   }
 }
 function sourceLinks(candidate) {

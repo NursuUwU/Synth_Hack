@@ -169,19 +169,6 @@ class Workspace:
                 'rank': found['rank'] if found else None, 'prediction_matches': report['prediction'] == expected}
 
     @staticmethod
-    def gene_ranking(report, limit=15):
-        genes = {}
-        for candidate in report['candidates']:
-            gene = candidate['gene']
-            if not gene:
-                continue
-            entry = genes.setdefault(gene, {'gene': gene, 'rank': len(genes) + 1, 'score': candidate['score'],
-                                             'best_variant': candidate['variant_id'], 'variants': 0,
-                                             'disease_name': candidate['disease_name']})
-            entry['variants'] += 1
-        return sorted(genes.values(), key=lambda g: g['rank'])[:limit]
-
-    @staticmethod
     def with_facts(candidate, annotations):
         # Table columns need the allele frequency, which lives in the annotation, not the score.
         annotation = annotations.get(candidate['variant_id'], {})
@@ -208,7 +195,7 @@ class Workspace:
             if len(near) < 2:
                 near = []
             return {'case_id': case.id, 'status': report['status'], 'prediction': report['prediction'],
-                    'known_answer': self.known_answer(case, report), 'genes': self.gene_ranking(report),
+                    'known_answer': self.known_answer(case, report),
                     'uncertainty_reasons': report['uncertainty_reasons'],
                     'ambiguity': {'gap_threshold': CANDIDATE_GAP, 'variant_ids': near},
                     'created_at': report['created_at'], 'modified': modified,

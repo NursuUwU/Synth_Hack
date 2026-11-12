@@ -91,11 +91,6 @@
 .known-answer.miss{border-left:4px solid var(--gold)}
 .known-line{font-size:12px;margin:0 0 4px}
 .known-answer .helper{margin:0;font-size:10px}
-.gene-ranking{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:0 20px 14px;font-size:10px}
-.gene-title{color:var(--muted)}
-.gene-chip{border:1px solid #d6e1dc;background:#fff;border-radius:12px;padding:3px 9px;font-size:10px;color:var(--ink);cursor:pointer}
-.gene-chip:first-of-type{border-color:var(--green);color:var(--green);font-weight:600}
-.gene-chip:hover{background:#eef7f1}
 .why-list li.vs{color:#4f5f5b;margin-top:4px}
 .why-list li.vs:before{content:'⇄';position:absolute;left:0;color:#2f6f9f}
-
+.gene-repeat{display:block;font-size:9px;color:var(--muted);margin-top:2px}

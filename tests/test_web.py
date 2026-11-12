@@ -174,14 +174,3 @@ class ResponseContextTests(unittest.TestCase):
         self.assertEqual((known['rank'], known['prediction_matches']), (2, True))
         self.assertIsNone(workspace.known_answer(Case('case_x', [Variant("1", 100, "A", "T", "0/1")], {}, {}, {'uploaded': True}), report))
         self.assertIsNone(workspace.known_answer(Case('other', [Variant("1", 100, "A", "T", "0/1")], {}, {}), report))
-
-    def test_gene_ranking_counts_variants_per_gene(self):
-        from genomic_detective.web import Workspace
-        report = {'candidates': [
-            {'gene': 'G1', 'score': 0.9, 'variant_id': 'v1', 'disease_name': 'd'},
-            {'gene': 'G2', 'score': 0.5, 'variant_id': 'v2', 'disease_name': 'd'},
-            {'gene': 'G1', 'score': 0.4, 'variant_id': 'v3', 'disease_name': 'd'},
-            {'gene': None, 'score': 0.1, 'variant_id': 'v4', 'disease_name': None}]}
-        genes = Workspace.gene_ranking(report)
-        self.assertEqual([(g['rank'], g['gene'], g['variants'], g['best_variant']) for g in genes],
-                         [(1, 'G1', 2, 'v1'), (2, 'G2', 1, 'v2')])
