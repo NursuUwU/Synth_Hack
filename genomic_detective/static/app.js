@@ -359,7 +359,7 @@ function renderReport() {
   };
   $('status-note').textContent = report.status === 'uncertain' && reasons.length
     ? reasons.map(reason => descriptions[reason] || reason).join(' ') : statusNotes[report.status] || '';
-  $('status-note').className = `status-note${report.status === 'candidate' ? '' : ' amber'}`;
+  $('status-note').className = `status-note${{candidate: '', uncertain: ' soft'}[report.status] ?? ' neutral'}`;
   $('variant-count').textContent = report.variant_count;
   $('coverage').textContent = `${(report.annotation_coverage * 100).toFixed(0)}%`;
   const uncertain = report.status === 'uncertain' && report.ambiguity.variant_ids.length >= 2;
@@ -370,7 +370,7 @@ function renderReport() {
   $('priority-note').textContent = uncertain ? `Разрыв с первым < ${gap}` : '';
   const legend = [];
   if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
-  if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `спорные: разрыв с первым меньше ${gap} (показаны до 5)` : 'ведущая гипотеза с неполным подтверждением']);
+  if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `близкие гипотезы: разрыв с первым меньше ${gap}` : 'ведущая гипотеза, подтверждение неполное']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
   $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'),
     el('span', 'legend-item', 'Обрезанный текст кликабелен — откроет доказательства'));
@@ -390,8 +390,8 @@ async function analyze() {
   showError(''); setBusy(true);
   const payload = {case_id: state.current.id, positive: [], excluded: [], inheritance: $('inheritance').value || null};
   state.inheritanceUsed = $('inheritance').value;
-  state.positiveCount = payload.positive.length;
   for (const [id, f] of state.features) if (f.mode !== 'ignored') payload[f.mode].push(id);
+  state.positiveCount = payload.positive.length;
   try {
     const report = await api('/api/analyze', payload);
     state.previous = new Map((state.report?.candidates || []).map(c => [c.variant_id, c.rank]));
