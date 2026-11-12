@@ -1,0 +1,127 @@
+{
+  "id": "kbg_ankrd11_example",
+  "subject": {
+    "id": "example_proband",
+    "sex": "MALE"
+  },
+  "phenotypicFeatures": [
+    {
+      "type": {
+        "id": "HP:0001249",
+        "label": "Intellectual disability"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0000729",
+        "label": "Autistic behavior"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0007018",
+        "label": "Attention deficit hyperactivity disorder"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0001263",
+        "label": "Global developmental delay"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0000325",
+        "label": "Triangular face"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0000574",
+        "label": "Thick eyebrow"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0000343",
+        "label": "Long philtrum"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0001252",
+        "label": "Hypotonia"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0000407",
+        "label": "Sensorineural hearing impairment"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0000028",
+        "label": "Cryptorchidism"
+      }
+    },
+    {
+      "type": {
+        "id": "HP:0001155",
+        "label": "Abnormality of the hand"
+      },
+      "excluded": true
+    },
+    {
+      "type": {
+        "id": "HP:0004322",
+        "label": "Short stature"
+      },
+      "excluded": true
+    },
+    {
+      "type": {
+        "id": "HP:0001511",
+        "label": "Intrauterine growth retardation"
+      },
+      "excluded": true
+    },
+    {
+      "type": {
+        "id": "HP:0002750",
+        "label": "Delayed skeletal maturation"
+      },
+      "excluded": true
+    },
+    {
+      "type": {
+        "id": "HP:0002373",
+        "label": "Febrile seizure (within the age range of 3 months to 6 years)"
+      },
+      "excluded": true
+    },
+    {
+      "type": {
+        "id": "HP:0007359",
+        "label": "Focal-onset seizure"
+      },
+      "excluded": true
+    },
+    {
+      "type": {
+        "id": "HP:0002197",
+        "label": "Generalized-onset seizure"
+      },
+      "excluded": true
+    }
+  ],
+  "metaData": {
+    "createdBy": "Genomic Detective upload example",
+    "externalReferences": [
+      {
+        "id": "PMID:36446582",
+        "description": "Phenopacket Store 0.1.27, ANKRD11/PMID_36446582_KBG24 (BSD-3-Clause)"
+      }
+    ]
+  }
+}
