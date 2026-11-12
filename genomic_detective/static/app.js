@@ -259,7 +259,9 @@ function openCandidate(candidate, target) {
   // Mark the destination once the page has arrived: for symptoms only the matched features
   // themselves, otherwise the linked section.
   glideTo(section, 16, () => {
-    const features = [...section.querySelectorAll('li.ev-match')];
+    // Exactly the features listed in the table cell: exact matches and close ones (>= 0.5).
+    const shown = new Set((candidate.experts.phenotype.matches || []).filter(m => m.similarity >= 0.5).map(m => m.query));
+    const features = [...section.querySelectorAll('li.ev-match')].filter(li => shown.has(li.dataset.term));
     const marks = target === 'sec-phenotype' && features.length ? features : [section];
     for (const node of marks) { node.classList.remove('marked'); void node.offsetWidth; node.classList.add('marked'); }
   });
@@ -398,6 +400,8 @@ function evidenceSection(title, expert, weight) {
   const list = el('ul', 'evidence-list');
   for (const evidence of expert.evidence || []) {
     const item = el('li', {phenotype_conflict: 'conflict', phenotype_match: 'ev-match'}[evidence.criterion] || '');
+    const term = evidence.criterion === 'phenotype_match' && evidence.text.match(/\((HP:\d{7})\)/);
+    if (term) item.dataset.term = term[1];
     item.append(el('span', '', evidence.text)); if (evidence.refs) item.append(citations(evidence.refs));
     const source = el('span', 'evidence-source');
     const basis = {database: 'Справочник', prediction: 'Предсказание', compatibility: 'Совместимость',
