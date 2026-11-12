@@ -96,7 +96,7 @@
 .gene-repeat{display:block;font-size:9px;color:var(--muted);margin-top:2px}
 /* Citations: small superscript links, quiet until hovered. */
 .cite{font-size:8px;line-height:0;margin-left:1px;vertical-align:super}
-.cite a{color:#7f9a90;text-decoration:none;margin-left:1px}
-.cite a:hover{color:var(--green);text-decoration:underline}
-th .cite a{color:#9fb2ab}
+.cite a{color:var(--green);font-weight:600;text-decoration:none;margin-left:1px}
+.cite a:hover{color:#125747;text-decoration:underline}
+th .cite a{color:var(--green)}
 
