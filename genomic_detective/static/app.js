@@ -229,20 +229,20 @@ function clipCell(text, target, candidate, title) {
   span.addEventListener('click', event => { event.stopPropagation(); openCandidate(candidate, target); });
   cell.append(span); return cell;
 }
-function glideTo(element, offset = 16) {
+function glideTo(element, offset = 16, onArrive = () => {}) {
   // Ease-in-out scroll: gentle start, gentle arrival at the card; longer trips take longer.
   const start = window.scrollY;
   const end = Math.max(0, start + element.getBoundingClientRect().top - offset);
   const distance = end - start;
-  if (!distance) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo(0, end); return; }
-  const duration = Math.min(1300, 650 + Math.abs(distance) * 0.45);
+  if (!distance) { onArrive(); return; }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo(0, end); onArrive(); return; }
+  const duration = Math.min(1100, 550 + Math.abs(distance) * 0.4);
   const began = performance.now();
   const step = now => {
     const t = Math.min(1, (now - began) / duration);
     const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     window.scrollTo(0, start + distance * eased);
-    if (t < 1) requestAnimationFrame(step);
+    if (t < 1) requestAnimationFrame(step); else onArrive();
   };
   requestAnimationFrame(step);
 }
@@ -256,8 +256,12 @@ function openCandidate(candidate, target) {
     return;
   }
   const section = document.getElementById(target) || $('details');
-  glideTo(section);
-  section.classList.remove('flash'); void section.offsetWidth; section.classList.add('flash');
+  // Mark the destination once the page has arrived: the section pulses twice, and for
+  // symptoms the matched features themselves are highlighted.
+  glideTo(section, 16, () => {
+    const marks = [section, ...section.querySelectorAll('li.ev-match')];
+    for (const node of marks) { node.classList.remove('marked'); void node.offsetWidth; node.classList.add('marked'); }
+  });
 }
 function placeCell(candidate) {
   // Place, total score and its bar in one column; the score is an internal sum, not a probability.
@@ -392,7 +396,7 @@ function evidenceSection(title, expert, weight) {
   heading.append(el('small', '', `${score(expert.score)} · вес ${weight}`)); section.append(heading);
   const list = el('ul', 'evidence-list');
   for (const evidence of expert.evidence || []) {
-    const item = el('li', evidence.criterion === 'phenotype_conflict' ? 'conflict' : '');
+    const item = el('li', {phenotype_conflict: 'conflict', phenotype_match: 'ev-match'}[evidence.criterion] || '');
     item.append(el('span', '', evidence.text)); if (evidence.refs) item.append(citations(evidence.refs));
     const source = el('span', 'evidence-source');
     const basis = {database: 'Справочник', prediction: 'Предсказание', compatibility: 'Совместимость',
