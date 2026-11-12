@@ -8,3 +8,6 @@ data/cache/
 data/knowledge/
 outputs/
 .pytest_cache/
+.runtime/
+.test-workspaces/
+data/.demo-staging-*/

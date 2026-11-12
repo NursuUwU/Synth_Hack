@@ -1,0 +1,18 @@
+{
+  "version": "3.14.10",
+  "source": "https://www.python.org/downloads/release/python-31410/",
+  "windows": {
+    "amd64": {
+      "url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip",
+      "sha256": "90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159"
+    },
+    "arm64": {
+      "url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-arm64.zip",
+      "sha256": "bbe116bb1248820359cbf25127ac5c7794ea161869d83686cfbc9a45203ff836"
+    },
+    "win32": {
+      "url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-win32.zip",
+      "sha256": "11a28e8c00a6d8f56b0a6164d52546133a9ed015a5b33e04536917e4fd6e306c"
+    }
+  }
+}

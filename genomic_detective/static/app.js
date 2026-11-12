@@ -243,6 +243,7 @@ $('more').addEventListener('click', () => { state.visible += 10; renderRanking()
 (async () => {
   try {
     const initial = await api('/api/init'); state.cases = initial.cases; state.token = initial.token;
+    $('hpo-credit').textContent = `Human Phenotype Ontology · ${initial.hpo_version || 'версия не передана'}`;
     if (!state.cases.length) throw new Error('В наборе нет случаев.');
     $('case-select').replaceChildren(...state.cases.map(c => {
       const option = el('option', '', c.id.replace('case_', 'Случай ')); option.value = c.id; return option;

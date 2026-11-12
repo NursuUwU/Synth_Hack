@@ -1,16 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
-$candidates = @(
-    $env:GENOMIC_PYTHON,
-    (Join-Path $projectRoot '.venv\Scripts\python.exe'),
-    (Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe')
-)
-$pythonPath = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
-if (-not $pythonPath) {
-    $command = Get-Command python -ErrorAction SilentlyContinue
-    if ($command -and $command.Source -notlike '*WindowsApps*') { $pythonPath = $command.Source }
-}
-if (-not $pythonPath) { throw 'Python 3.11+ required. Set GENOMIC_PYTHON to the executable path.' }
+. (Join-Path $projectRoot 'scripts/python-runtime.ps1')
+$pythonPath = Resolve-GenomicPython -ProjectRoot $projectRoot
+$env:PYTHONUTF8 = '1'
 $loadedCredential = $false
 $secretPath = Join-Path $projectRoot '.secrets\gigachat.dpapi'
 if ((('--llm' -in $args) -or ('llm-check' -in $args)) -and -not $env:GIGACHAT_CREDENTIALS -and (Test-Path -LiteralPath $secretPath)) {
@@ -24,7 +16,8 @@ if ((('--llm' -in $args) -or ('llm-check' -in $args)) -and -not $env:GIGACHAT_CR
 }
 Push-Location -LiteralPath $projectRoot
 try {
-    & $pythonPath -m genomic_detective @args
+    # Explicit project path also supports python.org's isolated embeddable distribution.
+    & $pythonPath -I -c "import sys,runpy; sys.path.insert(0,sys.argv.pop(1)); runpy.run_module('genomic_detective',run_name='__main__')" $projectRoot @args
     $resultCode = $LASTEXITCODE
 } finally {
     if ($loadedCredential) { Remove-Item Env:\GIGACHAT_CREDENTIALS -ErrorAction SilentlyContinue }

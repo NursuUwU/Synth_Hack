@@ -14,7 +14,7 @@ DEFAULT_ARCHIVE = 'Project_3_genomic_detecive_for_students.zip'
 
 
 def parser():
-    root = argparse.ArgumentParser(description='Genomic Detective: educational variant prioritization')
+    root = argparse.ArgumentParser(prog='genomic-detective', description='Genomic Detective: educational variant prioritization')
     commands = root.add_subparsers(dest='command', required=True)
     for name in ['prepare', 'run', 'benchmark', 'serve']:
         sub = commands.add_parser(name)

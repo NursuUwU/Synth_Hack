@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-11-12",
+  "bundle_sha256": "7cf3e6d6a73f599ecac75eb56ac146d2366e846b78a28bcc740d4030ec452343",
+  "bundle_bytes": 10198483,
+  "hpo_version": "2026-09-01",
+  "vep": {
+    "namespace": "vep-116-GRCh38-n1-canonical=1&mane=1&hgvs=1&numbers=1&transcript_version=1",
+    "assembly": "GRCh38",
+    "assembly_patch": "GRCh38.p14",
+    "ensembl_releases": [
+      116
+    ],
+    "endpoint": "https://rest.ensembl.org/vep/homo_sapiens/region",
+    "options": "canonical=1&mane=1&hgvs=1&numbers=1&transcript_version=1",
+    "verified_at": "2026-11-12T07:33:17.533695+00:00"
+  },
+  "cached_variants": 3690,
+  "dataset_sha256": "8fff8c927ef3e0d25fabb5f5d79f40f1d162bc67840cc881f3c1da04bb62eac0",
+  "files": {
+    "cache/vep.sqlite3": {
+      "bytes": 22736896,
+      "sha256": "28debbba5da17380b16bc6a61cf2a81034896ffd43cc4cec5b7b1005d17b0f4e"
+    },
+    "knowledge/genes_to_phenotype.txt": {
+      "bytes": 20821704,
+      "sha256": "507a17bff9c49e6329fbd88b1f91734fa7e9fdea5c06304044c0892eb6ab248c"
+    },
+    "knowledge/hp.obo": {
+      "bytes": 10863613,
+      "sha256": "93dace952fcb3ec4728818857f6ba76bc2d5312f4d83266519b8694b8e798f22"
+    },
+    "knowledge/manifest.json": {
+      "bytes": 849,
+      "sha256": "ec43aeb0d30d223f7b4b770c66e97217e9077f021cf41f89fffa2ccf2b3d45d8"
+    },
+    "knowledge/phenotype.hpoa": {
+      "bytes": 35816037,
+      "sha256": "e89aa39c8f97bf5a52c5d160f9250a603681d630ade8ec2679d84ac5aece1f72"
+    }
+  },
+  "attribution": "See resources/README.md and docs/data_sources.md"
+}

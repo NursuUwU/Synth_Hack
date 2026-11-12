@@ -48,6 +48,7 @@ class Workspace:
 
     def bootstrap(self):
         return {'token': self.token, 'cases': [self.case_info(c) for c in self.cases.values()],
+                'hpo_version': self.knowledge.manifest.get('ontology_version', 'version unavailable'),
                 'hpo_terms': len(self.knowledge.labels), 'diseases': len(self.knowledge.diseases),
                 'weights': self.config.dictionary()['weights']}
 
@@ -219,8 +220,21 @@ class Handler(BaseHTTPRequestHandler):
 def serve(args):
     if not 0 <= args.port <= 65535:
         raise ValueError('Port must be between 0 and 65535')
-    workspace = Workspace(args.dataset, args.cache, args.knowledge, args.config, args.output)
-    with LocalServer(args.port, workspace) as server:
+    # Bind first, before expensive HPO loading. A second launch must fail immediately.
+    try:
+        server = LocalServer(args.port, None)
+    except OSError as error:
+        if getattr(error, 'winerror', None) == 10048 or error.errno in {48, 98, 10048}:
+            raise ValueError(f'Port {args.port} is already in use. Open http://127.0.0.1:{args.port}/ '
+                             'or start with --port 8766.') from error
+        raise
+    with server:
+        if (args.cache.resolve() == Path('data/cache/vep.sqlite3').resolve()
+                and args.knowledge.resolve() == Path('data/knowledge').resolve()):
+            from .demo_data import ensure_demo_data
+            ensure_demo_data(Path.cwd(), progress=lambda text: print(text, flush=True))
+        print('Loading local HPO reference data. Please wait...', flush=True)
+        server.workspace = Workspace(args.dataset, args.cache, args.knowledge, args.config, args.output)
         print(f'Local UI: {server.origin}', flush=True)
         print('Offline annotations; no external API calls. Stop: Ctrl+C.', flush=True)
         if args.open:
