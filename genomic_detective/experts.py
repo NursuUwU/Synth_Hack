@@ -1,7 +1,9 @@
 """Deterministic experts. Scores are heuristic support, never disease probabilities."""
 from __future__ import annotations
 
+import copy
 import hashlib
+import json
 
 from .knowledge import Knowledge
 from .models import Case, Variant
@@ -22,6 +24,13 @@ def evidence(subject: str, criterion: str, text: str, source: str, basis: str) -
     identity = f'{subject}|{criterion}|{text}|{source}'
     return {'id': 'ev_' + hashlib.sha256(identity.encode()).hexdigest()[:16],
             'criterion': criterion, 'text': text, 'source': source, 'basis': basis}
+
+
+def _literature_url(entry: dict) -> str:
+    source = entry.get('source') or {}
+    if source.get('pmid'):
+        return 'https://pubmed.ncbi.nlm.nih.gov/' + str(source['pmid']) + '/'
+    return str(source.get('url') or '')
 
 
 def clinical_support(significance: list[str]) -> tuple[str, float]:
@@ -116,6 +125,8 @@ class MolecularExpert:
             from .molecular import default_knowledge
             knowledge = default_knowledge()
         self.knowledge = knowledge
+        self.cache = {}
+        self.facts_cache = {}
 
     def extract_facts(self, variant, annotation, gene):
         baseline = self._baseline(variant, annotation, gene)
@@ -126,8 +137,82 @@ class MolecularExpert:
     def assess_facts(self, facts, disease_id=None):
         return self.knowledge.assess(facts, disease_id) if self.mode == 'context_v2' else facts['baseline']
 
-    def assess(self, variant: Variant, annotation: dict, gene: str | None, disease_id=None) -> dict:
-        return self.assess_facts(self.extract_facts(variant, annotation, gene), disease_id)
+    def extract_facts_cached(self, variant, annotation, gene):
+        identity = hashlib.sha256(json.dumps(annotation, sort_keys=True, default=str).encode()).hexdigest()
+        key = (variant.id, gene, identity)
+        if key not in self.facts_cache:
+            self.facts_cache[key] = self.extract_facts(variant, annotation, gene)
+        return self.facts_cache[key]
+
+    def assess(self, variant: Variant, annotation: dict, gene: str | None, disease_id=None,
+               literature=None) -> dict:
+        # The curated layer belongs to v1.2. It is never auto-loaded for the
+        # frozen legacy mode; explicit registries remain supported for tests.
+        if literature is None and self.mode == 'context_v2':
+            from .literature import default_registry
+            literature = default_registry()
+        identity = hashlib.sha256(json.dumps(annotation, sort_keys=True, default=str).encode()).hexdigest()
+        key = (variant.id, gene, disease_id, identity,
+               literature.digest if literature is not None else None)
+        if key in self.cache:
+            return copy.deepcopy(self.cache[key])
+        result = self.assess_facts(self.extract_facts_cached(variant, annotation, gene), disease_id)
+        if literature is not None:
+            result = self.apply_literature(result, variant, gene, disease_id, literature)
+        self.cache[key] = result
+        return copy.deepcopy(result)
+
+    def apply_literature(self, result: dict, variant: Variant, gene: str | None, disease_id,
+                         literature) -> dict:
+        """Exact-allele curation raises consequence support with max(), never by summing."""
+        if result.get('score') is None or not gene or not disease_id:
+            return result
+        matched = literature.match(variant, gene, disease_id)
+        if not matched:
+            return result
+        subject = f'{variant.id}:{gene}:{disease_id}'
+        exact = [entry for entry in matched if entry['evidence_scope'] == 'exact_variant']
+        context = [entry for entry in matched if entry['evidence_scope'] != 'exact_variant']
+        items = result['evidence']
+        for entry in context:
+            text = (f"{entry['fact']} Область применимости: {entry['evidence_scope']}; "
+                    'свидетельство показано как контекст и не добавляет поддержку точному аллелю.')
+            item = evidence(subject, 'literature_context', text,
+                                 'LIT:' + entry['id'], 'literature')
+            item['url'] = _literature_url(entry)
+            items.append(item)
+        if not exact:
+            result['literature_context'] = [entry['id'] for entry in context]
+            return result
+        support = max(entry['support'] for entry in exact)
+        base = result['components']['consequence']
+        result['literature_base_consequence'] = base
+        result['literature_support'] = support
+        result['components']['consequence'] = max(base, support)
+        for entry in exact:
+            text = (f"{entry['fact']} Источник: PMID {entry['source'].get('pmid', 'не указан')}, "
+                    f"{entry['source'].get('material', 'материал не указан')}. "
+                    'Это установленный функциональный эффект для точного аллеля, '
+                    'не ACMG-класс и не вероятность диагноза.')
+            boundaries = entry.get('not_established') or []
+            if boundaries:
+                text += ' Границы: ' + '; '.join(boundaries) + '.'
+            item = evidence(subject, 'literature_functional_effect', text,
+                                 'LIT:' + entry['id'], 'literature')
+            item['url'] = _literature_url(entry)
+            items.append(item)
+        result['literature_applied'] = [entry['id'] for entry in exact]
+        if result.get('scoring_policy') == 'context_v2_max_not_sum':
+            components = result['components']
+            support_block = max(0.55 * components['consequence'], components.get('functional', 0.0),
+                                components.get('clinical', 0.0))
+            result['support_block'] = support_block
+            result['score'] = support_block + 0.15 * components['frequency']
+        else:
+            components = result['components']
+            result['score'] = (0.55 * components['consequence'] + 0.15 * components['frequency']
+                               + 0.30 * components.get('clinical', 0.0))
+        return result
 
     def _baseline(self, variant: Variant, annotation: dict, gene: str | None) -> dict:
         if annotation.get('status') != 'annotated':

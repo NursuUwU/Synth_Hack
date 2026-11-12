@@ -14,8 +14,12 @@ from .reporting import get_reporter, html_report, make_presentation, markdown
 
 
 class Pipeline:
-    def __init__(self, provider, knowledge, config, llm=False):
+    def __init__(self, provider, knowledge, config, llm=False, literature=None):
         self.provider, self.knowledge, self.config, self.llm = provider, knowledge, config, llm
+        if literature is None:
+            from .literature import default_registry
+            literature = default_registry()
+        self.literature = literature
         self.reporter = get_reporter() if llm else None
 
     def run(self, cases: list[Case], offline=True, progress=None) -> list[dict]:
@@ -23,8 +27,9 @@ class Pipeline:
                                                       offline=offline, progress=progress)
         reports = []
         for case in cases:
-            candidates = rank(case, annotations, self.knowledge, self.config)
-            guard = check_ranking(case, candidates, annotations, self.config)
+            literature = self.literature if self.config.molecular_mode == 'context_v2' else None
+            candidates = rank(case, annotations, self.knowledge, self.config, literature)
+            guard = check_ranking(case, candidates, annotations, self.config, literature)
             count = sum(annotations[v.id]['status'] == 'annotated' for v in case.variants)
             coverage = count / len(case.variants)
             knowledge_ready = bool(self.knowledge.diseases) and any(
@@ -38,7 +43,11 @@ class Pipeline:
                 'No family segregation, phase confirmation or independent reference FASTA validation.',
                 'VEP clinical annotations do not include independently fetched condition-specific ClinVar review status.',
                 'Absence of a convincing candidate does not prove absence of a genetic cause.',
+                'Curated literature evidence is a small research sample; absence of a record is not evidence of benignity.',
             ]
+            if case.metadata.get('dataset_modification'):
+                warnings.append('Dataset modification: ' + str(case.metadata['dataset_modification'])
+                                + '. This is not an organizer case and must not be used for benchmark scoring.')
             if coverage < 1:
                 warnings.append(f'{len(case.variants) - count} variants lack annotations; missingness is not benign evidence.')
             if case.metadata.get('phenotype_truncated'):
@@ -70,7 +79,8 @@ class Pipeline:
                 'implementation_sha256': hashlib.sha256(b''.join(
                     path.name.encode() + b'\0' + path.read_bytes()
                     for path in sorted(Path(__file__).parent.glob('*.py')))).hexdigest(),
-                'sources': {'vep': source, 'hpo': self.knowledge.manifest},
+                'sources': {'vep': source, 'hpo': self.knowledge.manifest,
+                            'literature': self.literature.metadata()},
                 'candidates': candidates, 'genes': list(genes.values()), 'warnings': warnings,
                 'ranking_guard': guard}
             report['presentation'] = make_presentation(report, use_llm=self.llm, reporter=self.reporter)

@@ -56,7 +56,11 @@ def aggregate(experts: dict, config: RankingConfig) -> float:
                for name, assessment in experts.items())
 
 
-def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingConfig) -> list[dict]:
+def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingConfig,
+         literature=None) -> list[dict]:
+    if literature is None and config.molecular_mode == 'context_v2':
+        from .literature import default_registry
+        literature = default_registry()
     phenotype = PhenotypeExpert(knowledge)
     molecular = MolecularExpert(config.molecular_mode)
     inheritance = InheritanceExpert(knowledge)
@@ -70,9 +74,8 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
             hypotheses = phenotype.hypotheses(case, gene) if gene else [{
                 'score': None, 'disease_id': None, 'disease_name': None,
                 'evidence': [], 'missing': ['No annotated gene'], 'matches': [], 'conflicts': []}]
-            facts = molecular.extract_facts(variant, annotation, gene)
             for pheno in hypotheses:
-                mol = molecular.assess_facts(facts, pheno['disease_id'])
+                mol = molecular.assess(variant, annotation, gene, pheno['disease_id'], literature)
                 experts = {'phenotype': pheno, 'molecular': mol,
                            'inheritance': inheritance.assess(variant, pheno['disease_id'])}
                 alternatives.append({'variant_id': variant.id, 'assembly': variant.assembly,
@@ -114,7 +117,8 @@ def uncertainty_reasons(candidates, config):
         if assessment.get('functional_clinical_conflict'):
             reasons.append('functional_clinical_conflict')
         components = assessment.get('components', {})
-        if not components.get('clinical', 0) and not components.get('functional', 0):
+        if (not components.get('clinical', 0) and not components.get('functional', 0)
+                and not assessment.get('literature_applied')):
             reasons.append('limited_condition_evidence')
     return reasons
 

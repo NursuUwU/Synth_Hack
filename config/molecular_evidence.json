@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "version": "1.2",
+  "status": "approved_for_research_ranking",
+  "reviewed_on": "2026-11-12",
+  "assembly": "GRCh38",
+  "purpose": "Curated exact-allele functional evidence for research ranking. Support is heuristic, not an ACMG classification or a probability.",
+  "entries": [
+    {
+      "id": "lmna_g608g_splice",
+      "assembly": "GRCh38",
+      "variant": "chr1:156138613:C:T",
+      "gene": "LMNA",
+      "transcript": "NM_170707.4",
+      "hgvsc": "c.1824C>T",
+      "hgvsp": "p.Gly608=",
+      "disease_ids": [
+        "OMIM:176670",
+        "ORPHA:740"
+      ],
+      "crosswalk_source": {
+        "url": "https://api.orphadata.com/rd-cross-referencing/orphacodes/740",
+        "checked_on": "2026-11-12",
+        "relation": "E (Exact mapping: the two concepts are equivalent)",
+        "validation_status": "Validated",
+        "reference": "OMIM:176670",
+        "provider": "Orphadata API"
+      },
+      "evidence_scope": "exact_variant",
+      "evidence_type": "functional_experiment",
+      "support": 0.85,
+      "fact": "Для G608G (c.1824C>T, p.Gly608=) описаны аномальная обработка РНК и укороченный белковый продукт.",
+      "source": {
+        "pmid": "12714972",
+        "material": "Figure 2, Table 1"
+      },
+      "not_established": [
+        "RNA-эксперимент для входного образца не проводился",
+        "Литературное de novo не устанавливает de novo для входного случая"
+      ],
+      "approved_by": "participant_4"
+    }
+  ]
+}

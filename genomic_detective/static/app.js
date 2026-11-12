@@ -153,7 +153,7 @@ function evidenceSection(title, expert, weight) {
     item.append(el('span', '', evidence.text));
     const source = el('span', 'evidence-source');
     const basis = {database: 'Справочник', prediction: 'Предсказание', compatibility: 'Совместимость',
-      experimental_literature: 'Опубликованный эксперимент', literature_context: 'Литература'}[evidence.basis] || evidence.basis;
+      experimental_literature: 'Опубликованный эксперимент', literature_context: 'Литература', literature: 'Литература'}[evidence.basis] || evidence.basis;
     source.append(el('span', 'basis', basis));
     if (evidence.url?.startsWith('https://')) {
       const link = el('a', '', evidence.source); link.href = evidence.url;

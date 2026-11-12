@@ -35,6 +35,8 @@ class Workspace:
         self.cache_path = Path(cache)
         self.knowledge = Knowledge.load(Path(knowledge))
         self.config = RankingConfig.load(Path(config))
+        from .literature import default_registry
+        self.literature = default_registry()
         self.output = Path(output)
         self.token = secrets.token_urlsafe(32)
         self.lock = threading.Lock()
@@ -98,7 +100,8 @@ class Workspace:
         try:
             # SQLite connection belongs to the request thread; no shared connection.
             cache = AnnotationCache(self.cache_path)
-            report = Pipeline(VepProvider(cache), self.knowledge, self.config).run([case], offline=True)[0]
+            report = Pipeline(VepProvider(cache), self.knowledge, self.config,
+                              literature=getattr(self, 'literature', None)).run([case], offline=True)[0]
             run_id = secrets.token_hex(12)
             directory = self.output / run_id
             write_run([report], directory)

@@ -7,15 +7,20 @@ from .ranking import RankingConfig, aggregate
 
 REQUIRED_CRITERIA = frozenset({'phenotype_conflict', 'clinical_annotation', 'inheritance',
     'consequence', 'population_frequency', 'clinical_assertion', 'clinical_context',
-    'mechanism_context', 'functional_effect', 'literature_context', 'evidence_conflict'})
+    'mechanism_context', 'functional_effect', 'literature_context', 'evidence_conflict',
+    'literature_functional_effect'})
 
 
 class GuardError(ValueError):
     pass
 
 
-def check_ranking(case: Case, candidates: list[dict], annotations: dict, config: RankingConfig):
+def check_ranking(case: Case, candidates: list[dict], annotations: dict, config: RankingConfig,
+                  literature=None):
     from .experts import MolecularExpert
+    if literature is None:
+        from .literature import default_registry
+        literature = default_registry()
     molecular = MolecularExpert(config.molecular_mode)
     expected = {variant.id: variant for variant in case.variants}
     if len(candidates) != len(expected) or {c['variant_id'] for c in candidates} != set(expected):
@@ -50,12 +55,25 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
         allowed_sources = {f'VEP:{variant.cache_key}'}
         if config.molecular_mode == 'context_v2':
             try:
-                recalculated = molecular.assess(variant, annotation, gene, candidate['disease_id'])
+                recalculated = molecular.assess(variant, annotation, gene, candidate['disease_id'], literature)
             except (ValueError, KeyError, TypeError) as error:
                 raise GuardError('Invalid molecular evidence input') from error
             if recalculated != candidate['experts']['molecular']:
                 raise GuardError('Molecular evidence applicability or score changed')
             allowed_sources.update(item['source'] for item in recalculated['evidence'])
+        matched = literature.match(variant, gene, candidate['disease_id'])
+        allowed_sources.update(literature.sources(matched))
+        exact = [entry for entry in matched if entry['evidence_scope'] == 'exact_variant']
+        if exact and candidate['experts']['molecular'].get('literature_applied'):
+            result = candidate['experts']['molecular']
+            base = result.get('literature_base_consequence')
+            support = max(entry['support'] for entry in exact)
+            consequence = result.get('components', {}).get('consequence')
+            if base is None or consequence is None or abs(consequence - max(base, support)) > 1e-12:
+                raise GuardError('Literature support was summed or did not use max()')
+            if not set('LIT:' + entry['id'] for entry in exact).issubset(
+                    {item['source'] for item in result['evidence']}):
+                raise GuardError('Literature evidence is not attributable to the registry')
         if candidate['disease_id']:
             allowed_sources.add(f'HPO:{candidate["disease_id"]}')
         expected_evidence = [ev for expert in candidate['experts'].values() for ev in expert['evidence']]
@@ -72,6 +90,7 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
         'rank_order', 'missing_frequency', 'gene_provenance', 'evidence_references']
     if config.molecular_mode == 'context_v2':
         checks.extend(['contextual_molecular_recalculation', 'evidence_applicability'])
+    checks.append('literature_max_not_sum')
     return {'status': 'passed', 'checks': checks,
         'scope': 'Mechanical integrity; source correctness and clinical validity require expert review'}
 

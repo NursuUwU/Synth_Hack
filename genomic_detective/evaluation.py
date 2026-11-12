@@ -69,8 +69,11 @@ def compare_experts(cases, annotations: dict, knowledge, config, dataset_path: P
     saved winning hypotheses would miss alternative genes/diseases and is avoided.
     """
     from .guards import check_ranking
+    from .literature import default_registry
     from .models import utc_now
     from .ranking import rank
+
+    literature = default_registry()
 
     rankings, configs, included, excluded = {}, {}, [], []
     for case in cases:
@@ -92,8 +95,9 @@ def compare_experts(cases, annotations: dict, knowledge, config, dataset_path: P
         configs[method] = method_config.dictionary() | {'weights': dict(method_config.weights)}
         rankings[method] = {}
         for case in included:
-            candidates = rank(case, annotations, knowledge, method_config)
-            check_ranking(case, candidates, annotations, method_config)
+            applied = literature if method_config.molecular_mode == 'context_v2' else None
+            candidates = rank(case, annotations, knowledge, method_config, applied)
+            check_ranking(case, candidates, annotations, method_config, applied)
             rankings[method][case.id] = candidates
         if progress:
             progress(f'Benchmark: {method}, {len(included)} cases')
