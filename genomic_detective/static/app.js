@@ -229,17 +229,33 @@ function clipCell(text, target, candidate, title) {
   span.addEventListener('click', event => { event.stopPropagation(); openCandidate(candidate, target); });
   cell.append(span); return cell;
 }
+function glideTo(element, offset = 16) {
+  // Ease-out scroll: fast start, slowing down as the card approaches; longer trips take longer.
+  const start = window.scrollY;
+  const end = Math.max(0, start + element.getBoundingClientRect().top - offset);
+  const distance = end - start;
+  if (!distance) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo(0, end); return; }
+  const duration = Math.min(900, 450 + Math.abs(distance) * 0.35);
+  const began = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - began) / duration);
+    window.scrollTo(0, start + distance * (1 - Math.pow(1 - t, 4)));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 function openCandidate(candidate, target) {
   state.selected = candidate.variant_id; renderRanking(); renderDetails(candidate);
   if (!target) {
     // Row click: bring the card into view only when its heading is off screen, so clicking
     // through rows to compare does not keep moving the table.
     const top = $('details').getBoundingClientRect().top;
-    if (top > window.innerHeight - 120 || top < 0) $('details').scrollIntoView({behavior: 'smooth', block: 'start'});
+    if (top > window.innerHeight - 120 || top < 0) glideTo($('details'));
     return;
   }
   const section = document.getElementById(target) || $('details');
-  section.scrollIntoView({behavior: 'smooth', block: 'start'});
+  glideTo(section);
   section.classList.remove('flash'); void section.offsetWidth; section.classList.add('flash');
 }
 function placeCell(candidate) {
