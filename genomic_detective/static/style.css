@@ -26,11 +26,11 @@
 .ranking-card tbody tr:hover,.ranking-card tbody tr.row-near:hover{background:#f3f7f5}
 .ranking-card tbody tr.tone-best{background:#cdebd8}
 .ranking-card tbody tr.tone-best:hover{background:#c0e4cd}
-.ranking-card tbody tr.tone-contested{background:#edf7f0}
-.ranking-card tbody tr.tone-contested:hover{background:#e2f1e7}
+.ranking-card tbody tr.tone-contested{background:#eff6d8}
+.ranking-card tbody tr.tone-contested:hover{background:#e6f0c8}
 .ranking-card tbody tr.selected,.ranking-card tbody tr.selected:hover{background:#e2ecf6}
 .ranking-card tbody tr.tone-best.selected,.ranking-card tbody tr.tone-best.selected:hover{background:#c4e2dc}
-.ranking-card tbody tr.tone-contested.selected,.ranking-card tbody tr.tone-contested.selected:hover{background:#dcebee}
+.ranking-card tbody tr.tone-contested.selected,.ranking-card tbody tr.tone-contested.selected:hover{background:#dbe8e2}
 .ranking-card tbody tr.selected td:first-child{box-shadow:inset 4px 0 #2f6f9f}
 .rank-badge{color:var(--muted)}
 .inh-cell{font-weight:700;text-align:center}
@@ -39,7 +39,7 @@
 .legend-item{display:inline-flex;align-items:center;gap:5px}
 .legend-item i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #d6e1dc}
 .legend-item i.tone-best{background:#cdebd8}
-.legend-item i.tone-contested{background:#edf7f0}
+.legend-item i.tone-contested{background:#eff6d8}
 /* Wide report table: text cells clip with ellipsis; clicking the clipped text opens evidence. */
 .ranking-card table{table-layout:auto}
 .small-cell{font-size:10px;white-space:nowrap}
@@ -70,10 +70,10 @@
 .ranking-card tbody tr.tone-best.selected td:first-child{box-shadow:inset 4px 0 #2f6f9f,inset 8px 0 var(--green)}
 .ranking-card tbody tr.tone-best .gene-button,.ranking-card tbody tr.tone-best .total-score{color:var(--green)}
 .ranking-card tbody tr.tone-best .rank-number{color:var(--green);font-weight:700}
-.ranking-card tbody tr.tone-contested .gene-button{color:#2c6b56}
+.ranking-card tbody tr.tone-contested .gene-button{color:#4a6b23}
 .ranking-card td.total-score{color:var(--green)}
 .status-note{border-left:4px solid var(--green)}
-.status-note.soft{background:#eef7f1;color:#2f5f4b;border-color:#cfe5d7;border-left-color:#7bb393}
+.status-note.soft{background:#f1f7de;color:#465f2f;border-color:#dbe8bd;border-left-color:#9dbb5f}
 .status-note.neutral{background:#f3f5f5;color:#4f5f5b;border-color:#dfe5e3;border-left-color:#9aa8a6}
 .metric strong{color:var(--green)}
 .why{border-left:4px solid var(--green)}
@@ -84,4 +84,18 @@
 .place-cell .score-track{width:46px;height:4px;margin-top:4px}
 .place-cell .score-track i{background:var(--green)}
 .ranking-card tbody tr.tone-best .place-cell .rank-number{color:var(--green)}
+.data-needs,.known-answer{padding:14px 18px;margin-bottom:16px}
+.data-needs h4,.known-answer h4{font-size:12px;font-weight:600;margin:0 0 8px}
+.needs-list{margin:0;padding-left:18px;font-size:11px;line-height:1.8;color:#4f5f5b}
+.known-answer.match{border-left:4px solid var(--green)}
+.known-answer.miss{border-left:4px solid var(--gold)}
+.known-line{font-size:12px;margin:0 0 4px}
+.known-answer .helper{margin:0;font-size:10px}
+.gene-ranking{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:0 20px 14px;font-size:10px}
+.gene-title{color:var(--muted)}
+.gene-chip{border:1px solid #d6e1dc;background:#fff;border-radius:12px;padding:3px 9px;font-size:10px;color:var(--ink);cursor:pointer}
+.gene-chip:first-of-type{border-color:var(--green);color:var(--green);font-weight:600}
+.gene-chip:hover{background:#eef7f1}
+.why-list li.vs{color:#4f5f5b;margin-top:4px}
+.why-list li.vs:before{content:'⇄';position:absolute;left:0;color:#2f6f9f}
 

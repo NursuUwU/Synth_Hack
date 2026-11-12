@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const API_VERSION = 3;  // must match web.API_VERSION
+const API_VERSION = 4;  // must match web.API_VERSION
 const state = {cases: [], token: '', current: null, features: new Map(), report: null,
   previous: new Map(), selected: null, visible: 10, busy: false, searchVersion: 0};
 const statusTitles = {candidate: 'Кандидат найден', uncertain: 'Ведущая гипотеза',
@@ -266,7 +266,74 @@ function whyHere(candidate) {
   if (cv.text === 'Нет записи' || cv.note === 'для другой болезни') cons.push('нет записи ClinVar для этой болезни');
   else if (cv.tone === 'uncertain_significance') cons.push('значение варианта по ClinVar неизвестно');
   if (!cons.length) cons.push('семья и фаза вариантов не проверены');
-  return {pros: pros.slice(0, 2), cons: cons.slice(0, 1)};
+  return {pros: pros.slice(0, 2), cons: cons.slice(0, 1), versus: comparison(candidate)};
+}
+function rival(candidate) {
+  // The nearest candidate in another gene: above for lower places, below for the leader.
+  const list = state.report.candidates;
+  const above = list.filter(c => c.rank < candidate.rank && c.gene !== candidate.gene);
+  return candidate.rank === 1 ? list.find(c => c.gene && c.gene !== candidate.gene) : above[above.length - 1];
+}
+function comparison(candidate) {
+  const other = rival(candidate); if (!other) return null;
+  const a = candidate.experts, b = other.experts;
+  const parts = [`фенотип ${score(a.phenotype.score)} против ${score(b.phenotype.score)}`,
+    `молекулярные ${score(a.molecular.score)} против ${score(b.molecular.score)}`];
+  return candidate.rank === 1
+    ? `Ближайший конкурент — ${other.gene} (${other.rank}-е место, ${score(other.score)}): ${parts.join(', ')}.`
+    : `Выше стоит ${other.gene} (${other.rank}-е место, ${score(other.score)}): ${parts.join(', ')}.`;
+}
+function dataNeeds(report) {
+  // Scenario 3: what additional data would make the interpretation stronger.
+  const needs = []; const top = report.candidates[0]; const count = state.positiveCount || 0;
+  if (report.annotation_coverage < 1) needs.push('Аннотация всех вариантов: часть не получена — повторите с интернетом.');
+  if (count < 8) needs.push(`Больше признаков HPO: сейчас ${count}. Точные специфичные признаки сильнее всего меняют рейтинг.`);
+  if (state.current?.truncated) needs.push('Полный фенотип: профиль сокращён организаторами.');
+  if (!state.inheritanceUsed) needs.push('Семейный анамнез: известный тип наследования можно задать в профиле.');
+  if (top) {
+    const cv = clinvar(top);
+    if (!['pathogenic', 'likely_pathogenic'].includes(cv.tone) || cv.note !== 'для этой болезни')
+      needs.push(`Данные о значимости варианта ${top.gene || top.variant_id}: функциональные исследования или пересмотр ClinVar.`);
+    if ((top.experts.phenotype.score ?? 0) < 0.5) needs.push('Клиническая переоценка фенотипа: признаки слабо совпадают с болезнями найденных генов.');
+  }
+  needs.push('Образцы родителей (трио): подтвердить de novo или расположение двух вариантов в разных копиях.');
+  needs.push('Анализ инделов, CNV и некодирующих вариантов: в прототип не входит.');
+  return needs;
+}
+function renderContext(report) {
+  const needs = $('data-needs'); needs.replaceChildren();
+  needs.hidden = report.status === 'candidate';
+  if (!needs.hidden) {
+    needs.append(el('h4', '', 'Что улучшит интерпретацию'));
+    const list = el('ul', 'needs-list'); dataNeeds(report).forEach(text => list.append(el('li', '', text))); needs.append(list);
+  }
+  const box = $('known-answer'); box.replaceChildren(); const known = report.known_answer;
+  box.hidden = !known;
+  if (known) {
+    const ok = known.rank === 1;
+    box.className = `known-answer card ${ok ? 'match' : 'miss'}`;
+    box.append(el('h4', '', 'Сравнение с известным ответом'));
+    const line = el('p', 'known-line');
+    line.append(el('b', '', `${known.gene} ${known.variant}`),
+      document.createTextNode(known.rank ? ` — в нашем рейтинге ${known.rank}-е место${ok ? ' ✓' : ''}.` : ' — нет среди вариантов входа.'));
+    box.append(line);
+    const note = el('p', 'helper', `Разметка организаторов (Phenopacket, ${known.disease_id}). Ответ прочитан после расчёта и в рейтинг не передаётся.`);
+    if (report.modified) note.textContent += ' Профиль изменён — сравнение относится к изменённому профилю.';
+    box.append(note);
+  }
+  const genes = $('gene-ranking'); genes.replaceChildren();
+  if (report.genes?.length) {
+    genes.append(el('span', 'gene-title', 'Рейтинг генов:'));
+    for (const g of report.genes.slice(0, 10)) {
+      const chip = el('button', 'gene-chip', `${g.rank}. ${g.gene} ${score(g.score)}${g.variants > 1 ? ` · ${g.variants} вар.` : ''}`);
+      chip.type = 'button'; chip.title = `${g.disease_name || ''} — лучший вариант ${g.best_variant}`;
+      chip.addEventListener('click', () => {
+        const candidate = report.candidates.find(c => c.variant_id === g.best_variant);
+        if (candidate) openCandidate(candidate, 'sec-why');
+      });
+      genes.append(chip);
+    }
+  }
 }
 function sourceLinks(candidate) {
   const links = new Map(); const [chrom, pos, ref, alt] = candidate.variant_id.split(':');
@@ -319,6 +386,7 @@ function renderDetails(candidate) {
   whySection.append(el('h4', '', 'Почему на этом месте'));
   const list = el('ul', 'why-list');
   why.pros.forEach(text => list.append(el('li', 'pro', text))); why.cons.forEach(text => list.append(el('li', 'con', text)));
+  if (why.versus) list.append(el('li', 'vs', why.versus));
   const e = candidate.experts; const inh = inheritance(candidate);
   whySection.append(list, el('p', 'helper sub-scores',
     `Итог ${score(candidate.score)} = фенотип ${score(e.phenotype.score)} × ${state.report.config.weights.phenotype}`
@@ -373,14 +441,15 @@ function renderReport() {
   if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `близкие гипотезы: разрыв с первым меньше ${gap}` : 'ведущая гипотеза, подтверждение неполное']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
   $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'),
-    el('span', 'legend-item', 'Обрезанный текст кликабелен — откроет доказательства'));
+    el('span', 'legend-item', 'Обрезанный текст кликабелен — откроет доказательства'),
+    el('span', 'legend-item', 'Источник столбцов: базы данных — gnomAD, ClinVar, заболевание, симптомы (HPO) · прогноз — последствие (VEP) · вывод системы — наследование, место и балл'));
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }
   $('guard-status').textContent = report.ranking_guard.status === 'passed' && report.presentation_guard.status === 'passed'
     ? 'Проверка целостности расчёта и ссылок на доказательства пройдена. Клиническую достоверность эта проверка не устанавливает.'
     : 'Проверка целостности не пройдена.';
   $('warnings').replaceChildren(...report.warnings.map(w => el('li', '', translateWarning(w))));
   state.visible = 10; state.selected = report.candidates[0]?.variant_id;
-  renderRanking(); if (report.candidates[0]) renderDetails(report.candidates[0]);
+  renderContext(report); renderRanking(); if (report.candidates[0]) renderDetails(report.candidates[0]);
   $('details').hidden = !report.candidates.length;
   $('profile-state').textContent = report.modified ? 'Изменённый профиль · рассчитано' : 'Исходный профиль · рассчитано';
   $('run-label').textContent = 'Пересчитать рейтинг';
@@ -436,7 +505,7 @@ $('upload-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.busy) return;
   const vcf = $('upload-vcf').files[0]; const phenotype = $('upload-phenotype').files[0];
-  if (!vcf) { showError('Выберите VCF-файл.'); return; }
+  if (!vcf) { showError('Выберите VCF или таблицу вариантов.'); return; }
   if (vcf.size > 12 * 1024 * 1024) { showError('VCF больше 12 МБ: отфильтруйте его до панели генов или региона.'); return; }
   showError(''); setBusy(true); $('upload-label').textContent = 'Аннотируем варианты…';
   $('loading').querySelector('h2').textContent = 'Загружаем и аннотируем VCF';

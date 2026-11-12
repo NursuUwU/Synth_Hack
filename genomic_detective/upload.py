@@ -85,6 +85,32 @@ def parse_vcf(text: str) -> tuple[list[Variant], dict]:
     return variants, {key: value for key, value in skipped.items() if value}
 
 
+def parse_table(text: str) -> tuple[list[Variant], dict]:
+    """Prepared variant table (TSV/CSV) with chrom, pos, ref, alt, genotype — the organizers' format."""
+    import csv
+    import io
+    lines = [line for line in text.splitlines() if line.strip() and not line.startswith('##')]
+    if not lines:
+        raise ValueError('Таблица вариантов пуста.')
+    delimiter = '\t' if '\t' in lines[0] else ','
+    rows = list(csv.DictReader(io.StringIO('\n'.join(lines)), delimiter=delimiter))
+    header = {name.strip().lstrip('#').lower(): name for name in rows[0]} if rows else {}
+    required = ['chrom', 'pos', 'ref', 'alt', 'genotype']
+    if any(name not in header for name in required):
+        raise ValueError('В таблице нужны колонки chrom, pos, ref, alt, genotype (как в *_variants.tsv организаторов).')
+    vcf = ['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tPROBAND']
+    for row in rows:
+        values = [str(row[header[name]] or '').strip() for name in required]
+        vcf.append(f'{values[0]}\t{values[1]}\t.\t{values[2]}\t{values[3]}\t.\t.\t.\tGT\t{values[4]}')
+    # One validation path for both formats: the table is checked exactly like a VCF.
+    return parse_vcf('\n'.join(vcf))
+
+
+def parse_variants(text: str) -> tuple[list[Variant], dict]:
+    first = next((line for line in text.splitlines() if line.strip()), '')
+    return parse_vcf(text) if first.startswith('#') else parse_table(text)
+
+
 def parse_phenopacket(text: str, labels: dict) -> tuple[dict, dict, str, str | None]:
     """Phenopacket v2 phenotypicFeatures; unknown HPO IDs are rejected with a list."""
     try:

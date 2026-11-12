@@ -200,6 +200,15 @@ class UploadParsingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_vcf(self.HEADER.replace('P1', 'P1\tP2') + 'chr1\t100\t.\tA\tT\t.\t.\t.\tGT\t0/1\t0/0')
 
+    def test_prepared_table_uses_the_same_validation_as_vcf(self):
+        from genomic_detective.upload import parse_variants
+        table = 'chrom\tpos\tref\talt\tgenotype\tgene\nchr1\t100\tA\tT\t0/1\tNA\nchr1\t200\tAT\tA\t0/1\tNA\n'
+        variants, skipped = parse_variants(table)
+        self.assertEqual(([v.id for v in variants], skipped), (['chr1:100:A:T'], {'not_snv': 1}))
+        self.assertEqual(len(parse_variants('chrom,pos,ref,alt,genotype\n1,5,G,C,1/1\n')[0]), 1)
+        with self.assertRaises(ValueError):
+            parse_variants('chrom\tpos\nchr1\t100\n')
+
     def test_gzip_and_phenopacket(self):
         import gzip
         from genomic_detective.upload import decode, parse_phenopacket

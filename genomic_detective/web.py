@@ -24,7 +24,7 @@ from .ranking import CANDIDATE_GAP, RankingConfig
 
 ASSETS = Path(__file__).parent / 'static'
 # Bumped whenever routes change: static files are read per request, Python routes only at start.
-API_VERSION = 3
+API_VERSION = 4
 
 
 class BusyError(ValueError):
@@ -48,6 +48,12 @@ class Workspace:
         self.lock = threading.Lock()
         self.exports = {}
         self.uploads = 0
+        # Open answers are shown next to the result for comparison only; the ranker never sees them.
+        try:
+            from .evaluation import read_development_labels
+            self.labels = {row['case_id']: row for row in read_development_labels(Path(dataset))}
+        except (KeyError, OSError, ValueError):
+            self.labels = {}
 
     def case_info(self, case):
         return {'id': case.id, 'variant_count': len(case.variants), 'sex': case.sex,
@@ -107,14 +113,14 @@ class Workspace:
 
     def upload(self, payload):
         from .molecular import UPLOAD_SUPPLEMENT, default_knowledge
-        from .upload import annotate_missing, decode, fetch_clinvar, make_case, parse_phenopacket, parse_vcf, save_supplement
+        from .upload import annotate_missing, decode, fetch_clinvar, make_case, parse_phenopacket, parse_variants, save_supplement
         if not isinstance(payload, dict) or not isinstance(payload.get('vcf'), str):
-            raise ValueError('Выберите VCF-файл.')
+            raise ValueError('Выберите VCF или таблицу вариантов.')
         try:
             text = decode(base64.b64decode(payload['vcf'], validate=True))
         except (binascii.Error, OSError, EOFError, UnicodeError) as error:
-            raise ValueError('VCF не читается: ожидается текстовый .vcf или .vcf.gz в UTF-8.') from error
-        variants, skipped = parse_vcf(text)
+            raise ValueError('Файл не читается: ожидается .vcf, .vcf.gz или таблица .tsv/.csv в UTF-8.') from error
+        variants, skipped = parse_variants(text)
         positive, excluded, sex, packet_id = {}, {}, 'UNKNOWN_SEX', None
         if payload.get('phenotype'):
             positive, excluded, sex, packet_id = parse_phenopacket(str(payload['phenotype']), self.knowledge.labels)
@@ -152,6 +158,29 @@ class Workspace:
         self.cases[case.id] = case
         return {'case': self.case_info(case), 'annotation': summary}
 
+    def known_answer(self, case, report):
+        label = getattr(self, 'labels', {}).get(case.id)
+        if not label or case.metadata.get('uploaded'):
+            return None
+        expected = label['expected_answer']
+        found = next((c for c in report['candidates'] if c['variant_id'] == expected), None)
+        return {'variant': expected, 'gene': label['causal_gene'], 'disease_id': label['disease_id'],
+                'source_url': label['source_url'], 'evidence': label['evidence'],
+                'rank': found['rank'] if found else None, 'prediction_matches': report['prediction'] == expected}
+
+    @staticmethod
+    def gene_ranking(report, limit=15):
+        genes = {}
+        for candidate in report['candidates']:
+            gene = candidate['gene']
+            if not gene:
+                continue
+            entry = genes.setdefault(gene, {'gene': gene, 'rank': len(genes) + 1, 'score': candidate['score'],
+                                             'best_variant': candidate['variant_id'], 'variants': 0,
+                                             'disease_name': candidate['disease_name']})
+            entry['variants'] += 1
+        return sorted(genes.values(), key=lambda g: g['rank'])[:limit]
+
     @staticmethod
     def with_facts(candidate, annotations):
         # Table columns need the allele frequency, which lives in the annotation, not the score.
@@ -179,6 +208,7 @@ class Workspace:
             if len(near) < 2:
                 near = []
             return {'case_id': case.id, 'status': report['status'], 'prediction': report['prediction'],
+                    'known_answer': self.known_answer(case, report), 'genes': self.gene_ranking(report),
                     'uncertainty_reasons': report['uncertainty_reasons'],
                     'ambiguity': {'gap_threshold': CANDIDATE_GAP, 'variant_ids': near},
                     'created_at': report['created_at'], 'modified': modified,

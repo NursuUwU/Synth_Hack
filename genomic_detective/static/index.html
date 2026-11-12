@@ -22,15 +22,15 @@
       <div class="panel-heading"><h2>Профиль случая</h2></div>
       <label class="field-label" for="case-select">Случай</label>
       <select id="case-select" disabled><option>Загрузка…</option></select>
-      <button id="upload-toggle" type="button" class="text-button upload-toggle">+ Загрузить свой случай (VCF)</button>
+      <button id="upload-toggle" type="button" class="text-button upload-toggle">+ Загрузить свой случай (VCF или таблица)</button>
       <form id="upload-form" class="upload-form" hidden>
-        <label class="field-label" for="upload-vcf">VCF пробанда · GRCh38, один образец</label>
-        <input id="upload-vcf" type="file" accept=".vcf,.gz,.vcf.gz,text/plain" required>
+        <label class="field-label" for="upload-vcf">Варианты · VCF (GRCh38, один образец) или таблица TSV/CSV</label>
+        <input id="upload-vcf" type="file" accept=".vcf,.gz,.vcf.gz,.tsv,.csv,.txt,text/plain" required>
         <label class="field-label" for="upload-phenotype">Фенотип · Phenopacket JSON (необязательно)</label>
         <input id="upload-phenotype" type="file" accept=".json,application/json">
         <label class="field-label" for="upload-name">Название</label>
         <input id="upload-name" type="text" maxlength="80" placeholder="Например, пациент А">
-        <p class="helper">Однонуклеотидные варианты с генотипом 0/1 или 1/1, до 5000 строк. Новые варианты аннотируются через Ensembl VEP и ClinVar — нужен интернет. Без файла фенотипа признаки можно добавить поиском ниже.</p>
+        <p class="helper">Таблица — с колонками chrom, pos, ref, alt, genotype, как *_variants.tsv организаторов. Однонуклеотидные варианты с генотипом 0/1 или 1/1, до 5000 строк. Новые варианты аннотируются через Ensembl VEP и ClinVar — нужен интернет. Без файла фенотипа признаки можно добавить поиском ниже.</p>
         <button id="upload-submit" type="submit" class="primary-button"><span id="upload-label">Загрузить и аннотировать</span><span aria-hidden="true">↑</span></button>
       </form>
       <div id="case-meta" class="case-meta"></div>
@@ -60,9 +60,9 @@
       <div id="loading" class="loading-state card" role="status" hidden><div class="spinner"></div><h2>Сопоставляем доказательства</h2><p>Проверяем аннотации и пересчитываем все варианты по текущему HPO-профилю.</p><small>Обычно это занимает несколько секунд.</small></div>
       <div id="result" hidden>
         <div class="result-header"><div><p class="eyebrow" id="result-case"></p><h2 id="status-title"></h2><p id="result-profile" class="helper"></p></div><div class="download-links" aria-label="Скачать отчёт"><a id="download-html">Отчёт HTML ↓</a><a id="download-tsv">Таблица TSV ↓</a><a id="download-json">Данные JSON ↓</a></div></div>
-        <div id="status-note" class="status-note"></div>
+        <div id="status-note" class="status-note"></div><div id="data-needs" class="data-needs card" hidden></div><div id="known-answer" class="known-answer card" hidden></div>
         <div class="metrics"><div class="metric card"><span>Варианты в анализе</span><strong id="variant-count"></strong></div><div class="metric card"><span>Покрытие аннотациями</span><strong id="coverage"></strong></div><div class="metric card"><span id="priority-label">Первый в рейтинге</span><strong id="leading-gene"></strong><small id="priority-note"></small></div></div>
-        <div class="ranking-card card"><div class="section-line ranking-heading"><h3>Рейтинг кандидатов</h3><span id="shown-count" class="helper"></span></div><p class="helper score-note">Внутренние баллы 0–1, не вероятность диагноза. Нажмите на строку — доказательства откроются ниже.</p><p id="ranking-legend" class="helper score-note legend"></p><div class="table-scroll"><table><thead><tr><th scope="col" title="Место в рейтинге и внутренний балл 0–1 (не вероятность)">Место · балл</th><th scope="col">Ген / вариант</th><th scope="col">Генотип</th><th scope="col">Последствие</th><th scope="col" title="Максимальная частота по популяциям gnomAD">gnomAD</th><th scope="col">ClinVar</th><th scope="col">Заболевание</th><th scope="col">Совпадение симптомов</th><th scope="col">Наследование</th></tr></thead><tbody id="ranking"></tbody></table></div><button id="more" class="more-button" hidden>Показать ещё</button></div>
+        <div class="ranking-card card"><div class="section-line ranking-heading"><h3>Рейтинг кандидатов</h3><span id="shown-count" class="helper"></span></div><p class="helper score-note">Внутренние баллы 0–1, не вероятность диагноза. Нажмите на строку — доказательства откроются ниже.</p><p id="ranking-legend" class="helper score-note legend"></p><div id="gene-ranking" class="gene-ranking"></div><div class="table-scroll"><table><thead><tr><th scope="col" title="Место в рейтинге и внутренний балл 0–1 (не вероятность)">Место · балл</th><th scope="col">Ген / вариант</th><th scope="col">Генотип</th><th scope="col">Последствие</th><th scope="col" title="Максимальная частота по популяциям gnomAD">gnomAD</th><th scope="col">ClinVar</th><th scope="col">Заболевание</th><th scope="col">Совпадение симптомов</th><th scope="col">Наследование</th></tr></thead><tbody id="ranking"></tbody></table></div><button id="more" class="more-button" hidden>Показать ещё</button></div>
         <section id="details" class="details-card card" aria-label="Доказательства по кандидату"></section>
         <details class="limits card"><summary>Ограничения и проверка результата</summary><p>Учебный синтетический набор. Результат требует экспертной проверки и не является диагнозом.</p><p id="guard-status"></p><ul id="warnings"></ul></details>
       </div>

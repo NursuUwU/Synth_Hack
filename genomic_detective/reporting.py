@@ -144,6 +144,10 @@ def markdown(report: dict) -> str:
         displayed = [f'{score:.3f}' if score is not None else 'нет данных' for score in scores]
         lines.append('| ' + ' | '.join(cell(value) for value in [candidate['rank'], candidate['variant_id'],
             candidate['gene'], candidate['disease_name'], f'{candidate["score"]:.3f}', *displayed]) + ' |')
+    lines.extend(['', '## Рейтинг генов', '', '| Место | Ген | Лучший вариант | Балл |', '|---:|---|---|---:|'])
+    for number, gene in enumerate(report['genes'][:10], 1):
+        lines.append('| ' + ' | '.join(cell(value) for value in [number, gene['gene'], gene['best_variant'],
+            f'{gene["score"]:.3f}']) + ' |')
     lines.extend(['', '## Объяснение верхних позиций', ''])
     for candidate, item in zip(report['candidates'][:3], report['presentation']['selection']['candidates']):
         lines.extend([f'### {candidate["rank"]}. {candidate["variant_id"]} — {candidate["gene"] or "ген не определён"}', ''])
@@ -221,7 +225,10 @@ def html_report(report: dict) -> str:
         + '.json">Полный результат и источники (JSON)</a> · <a href="' + esc(report['case_id']) \
         + '_ranking.tsv">Полный рейтинг (TSV)</a></header><h2>Первые десять вариантов</h2><div class="table">' \
         '<table><thead><tr>' + ''.join('<th>' + esc(title) + '</th>' for title in headers) \
-        + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div><h2>Обоснование верхних позиций</h2>' \
+        + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div><h2>Рейтинг генов</h2><ol>' \
+        + ''.join('<li><b>' + esc(g['gene']) + '</b> — ' + esc(f"{g['score']:.3f}") + ', лучший вариант <code>'
+                  + esc(g['best_variant']) + '</code></li>' for g in report['genes'][:10]) \
+        + '</ol><h2>Обоснование верхних позиций</h2>' \
         + ''.join(articles) + '<section class="panel"><h2>Ограничения</h2><ul>' + warnings \
         + '</ul><p>Guard проверяет согласованность данных и ссылок. Биологическую интерпретацию ' \
         'проверяет специалист.</p></section><footer>Правила: ' + esc(report['config']['version']) \
