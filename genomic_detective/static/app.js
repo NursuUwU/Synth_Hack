@@ -257,8 +257,6 @@ function renderRanking() {
     // The table doubles as the gene ranking: repeated genes are marked instead of a separate list.
     const order = state.report.candidates.filter(c => c.gene && c.gene === candidate.gene && c.rank <= candidate.rank).length;
     if (order > 1) name.append(el('span', 'gene-repeat', `${order}-й вариант гена`));
-    const tone = rowTone(candidate);
-    if (tone) name.append(el('span', `tone-tag ${tone}`, tone === 'tone-best' ? 'ответ' : 'гипотеза'));
     row.append(name);
     const hom = ['1/1', '1|1'].includes(candidate.genotype);
     const genotype = el('td', 'small-cell', hom ? 'гомо' : 'гетеро'); genotype.title = `${candidate.genotype}: ${hom ? 'вариант в обеих копиях' : 'вариант в одной копии'}`;
@@ -453,7 +451,7 @@ function renderReport() {
   $('leading-gene').textContent = uncertain ? report.ambiguity.variant_ids.length : hasHypothesis ? report.candidates[0]?.gene || '—' : '—';
   $('priority-note').textContent = uncertain ? `Разрыв с первым < ${gap}` : '';
   const legend = [];
-  if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
+  if (report.status === 'candidate') legend.push(['tone-best', 'кандидат: прошёл все пороги']);
   if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `близкие гипотезы: разрыв с первым меньше ${gap}` : 'ведущая гипотеза, подтверждение неполное']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
   const inheritanceLegend = el('span', 'legend-item', 'Наследование:');
