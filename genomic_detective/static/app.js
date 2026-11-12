@@ -142,9 +142,11 @@ function scoreCell(value, total = false) {
 function rowTone(candidate) {
   // Green: the answer passed every threshold. Yellow: contested leaders (uncertain status
   // or near-equal scores). Everything else stays neutral.
+  // Near-equal groups are capped: with a sparse phenotype dozens of variants can tie.
   const report = state.report; const near = new Set(report.ambiguity.variant_ids);
   if (report.status === 'candidate' && candidate.rank === 1) return 'tone-best';
-  if (report.status === 'uncertain' && (candidate.rank === 1 || near.has(candidate.variant_id))) return 'tone-contested';
+  if (report.status === 'uncertain' && (candidate.rank === 1 || (near.has(candidate.variant_id) && candidate.rank <= 5)))
+    return 'tone-contested';
   return '';
 }
 function inheritanceCell(expert) {
@@ -208,7 +210,6 @@ function renderDetails(candidate) {
   const heading = el('div', 'candidate-heading'); const name = el('div');
   name.append(el('h3', '', candidate.gene || 'Ген не определён'), el('p', 'helper', candidate.variant_id));
   heading.append(name, el('span', 'rank-badge', `${candidate.rank}-е место`));
-  container.className = `details-card card ${rowTone(candidate)}`;
   const disease = el('p', 'disease-name', candidate.disease_name || 'Заболевание не определено');
   disease.append(el('small', '', candidate.disease_id || ''));
   const facts = el('div', 'detail-facts');
@@ -258,8 +259,7 @@ function renderReport() {
   $('priority-note').textContent = uncertain ? `Разрыв с первым < ${gap}` : '';
   const legend = [];
   if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
-  if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `спорные: разрыв с первым меньше ${gap}` : 'ведущая гипотеза с неполным подтверждением']);
-  legend.push(['tone-selected', 'открыт в карточке ниже']);
+  if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `спорные: разрыв с первым меньше ${gap} (показаны до 5)` : 'ведущая гипотеза с неполным подтверждением']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
   $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'));
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }

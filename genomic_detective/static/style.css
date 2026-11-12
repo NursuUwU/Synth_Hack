@@ -20,25 +20,24 @@
 .upload-form input{margin-bottom:12px}
 .upload-form input[type=file]{padding:8px;min-height:0}
 .inheritance-wrap{margin-top:21px}
-/* Row tones: green = answer, yellow = contested; selection mixes in blue so both stay visible. */
-:root{--tone-best:#e3f3e8;--tone-contested:#fff1cf;--tone-select:#c9dcf0;--select-bar:#2f6f9f}
-.ranking-card tbody tr{--row-bg:#ffffff}
-.ranking-card tbody tr.tone-best{--row-bg:var(--tone-best)}
-.ranking-card tbody tr.tone-contested{--row-bg:var(--tone-contested)}
-.ranking-card tbody tr,.ranking-card tbody tr.row-near{background:var(--row-bg)}
-.ranking-card tbody tr:hover,.ranking-card tbody tr.row-near:hover{background:color-mix(in srgb,var(--row-bg) 88%,#9bb8ad)}
-.ranking-card tbody tr.selected,.ranking-card tbody tr.selected:hover{background:color-mix(in srgb,var(--row-bg) 55%,var(--tone-select))}
-.ranking-card tbody tr.selected td:first-child{box-shadow:inset 4px 0 var(--select-bar)}
-.details-card{border-left:4px solid var(--select-bar)}
-.details-card.tone-best{background:linear-gradient(90deg,var(--tone-best),#fff 160px)}
-.details-card.tone-contested{background:linear-gradient(90deg,var(--tone-contested),#fff 160px)}
+/* Row tones: green = answer, yellow = contested. Selection blends each tone with blue
+   using precomputed colours (no color-mix, so older browsers render it too). */
+.ranking-card tbody tr,.ranking-card tbody tr.row-near{background:#fff}
+.ranking-card tbody tr:hover,.ranking-card tbody tr.row-near:hover{background:#f3f7f5}
+.ranking-card tbody tr.tone-best{background:#e3f3e8}
+.ranking-card tbody tr.tone-best:hover{background:#d6ecdd}
+.ranking-card tbody tr.tone-contested{background:#fff1cf}
+.ranking-card tbody tr.tone-contested:hover{background:#fbe8bb}
+.ranking-card tbody tr.selected,.ranking-card tbody tr.selected:hover{background:#e2ecf6}
+.ranking-card tbody tr.tone-best.selected,.ranking-card tbody tr.tone-best.selected:hover{background:#d0e6e6}
+.ranking-card tbody tr.tone-contested.selected,.ranking-card tbody tr.tone-contested.selected:hover{background:#e3e7d9}
+.ranking-card tbody tr.selected td:first-child{box-shadow:inset 4px 0 #2f6f9f}
 .rank-badge{color:var(--muted)}
 .inh-cell{font-weight:700;text-align:center}
 .inh-yes{color:var(--green)}.inh-partial{color:var(--gold)}.inh-no{color:var(--red)}.inh-unknown{color:#9aa8a6}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px}
 .legend-item{display:inline-flex;align-items:center;gap:5px}
 .legend-item i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #d6e1dc}
-.legend-item i.tone-best{background:var(--tone-best)}
-.legend-item i.tone-contested{background:var(--tone-contested)}
-.legend-item i.tone-selected{background:color-mix(in srgb,#fff 55%,var(--tone-select));box-shadow:inset 3px 0 var(--select-bar)}
+.legend-item i.tone-best{background:#e3f3e8}
+.legend-item i.tone-contested{background:#fff1cf}
 
