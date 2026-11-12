@@ -454,9 +454,7 @@ function renderReport() {
   if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
   if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `близкие гипотезы: разрыв с первым меньше ${gap}` : 'ведущая гипотеза, подтверждение неполное']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
-  $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'),
-    el('span', 'legend-item', 'Обрезанный текст кликабелен — откроет доказательства'),
-    el('span', 'legend-item', 'Источник столбцов: базы данных — gnomAD, ClinVar, заболевание, симптомы (HPO) · прогноз — последствие (VEP) · вывод системы — наследование, место и балл'));
+  $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'));
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }
   $('guard-status').textContent = report.ranking_guard.status === 'passed' && report.presentation_guard.status === 'passed'
     ? 'Проверка целостности расчёта и ссылок на доказательства пройдена. Клиническую достоверность эта проверка не устанавливает.'

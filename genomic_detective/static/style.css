@@ -34,7 +34,7 @@
 .ranking-card tbody tr.selected td:first-child{box-shadow:inset 4px 0 #2f6f9f}
 .rank-badge{color:var(--muted)}
 .inh-cell{font-weight:700;text-align:center}
-.inh-yes{color:var(--green)}.inh-partial{color:var(--gold)}.inh-no{color:var(--red)}.inh-unknown{color:#9aa8a6}
+.inh-yes,.inh-partial,.inh-no,.inh-unknown{color:#125747}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px}
 .legend-item{display:inline-flex;align-items:center;gap:5px}
 .legend-item i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #d6e1dc}
