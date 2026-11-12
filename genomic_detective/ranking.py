@@ -23,6 +23,7 @@ class RankingConfig:
     candidate_min_molecular: float
     min_annotation_coverage: float
     note: str = ''
+    molecular_mode: str = 'legacy_v1'
 
     @classmethod
     def load(cls, path: Path):
@@ -31,6 +32,8 @@ class RankingConfig:
         return result
 
     def validate(self):
+        if self.molecular_mode not in {'legacy_v1', 'context_v2'}:
+            raise ValueError('Unknown molecular mode')
         if set(self.weights) != {'phenotype', 'molecular', 'inheritance'}:
             raise ValueError('Exactly three expert weights are required')
         numbers = list(self.weights.values()) + [self.candidate_min_score, self.candidate_min_phenotype,
@@ -55,7 +58,7 @@ def aggregate(experts: dict, config: RankingConfig) -> float:
 
 def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingConfig) -> list[dict]:
     phenotype = PhenotypeExpert(knowledge)
-    molecular = MolecularExpert()
+    molecular = MolecularExpert(config.molecular_mode)
     inheritance = InheritanceExpert(knowledge)
     candidates = []
     for variant in case.variants:
@@ -67,8 +70,9 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
             hypotheses = phenotype.hypotheses(case, gene) if gene else [{
                 'score': None, 'disease_id': None, 'disease_name': None,
                 'evidence': [], 'missing': ['No annotated gene'], 'matches': [], 'conflicts': []}]
-            mol = molecular.assess(variant, annotation, gene)
+            facts = molecular.extract_facts(variant, annotation, gene)
             for pheno in hypotheses:
+                mol = molecular.assess_facts(facts, pheno['disease_id'])
                 experts = {'phenotype': pheno, 'molecular': mol,
                            'inheritance': inheritance.assess(variant, pheno['disease_id'])}
                 alternatives.append({'variant_id': variant.id, 'assembly': variant.assembly,
@@ -97,6 +101,24 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
     return candidates
 
 
+def uncertainty_reasons(candidates, config):
+    if not candidates:
+        return []
+    reasons = []
+    if len(candidates) > 1 and candidates[0]['score'] - candidates[1]['score'] < CANDIDATE_GAP:
+        reasons.append('close_scores')
+    if config.molecular_mode == 'context_v2':
+        assessment = candidates[0]['experts']['molecular']
+        if assessment.get('clinical_conflict'):
+            reasons.append('clinical_conflict')
+        if assessment.get('functional_clinical_conflict'):
+            reasons.append('functional_clinical_conflict')
+        components = assessment.get('components', {})
+        if not components.get('clinical', 0) and not components.get('functional', 0):
+            reasons.append('limited_condition_evidence')
+    return reasons
+
+
 def decide(candidates: list[dict], coverage: float, knowledge_ready: bool, config: RankingConfig):
     if coverage < config.min_annotation_coverage or not knowledge_ready:
         return 'incomplete', None
@@ -107,7 +129,6 @@ def decide(candidates: list[dict], coverage: float, knowledge_ready: bool, confi
         if (best['score'] >= config.candidate_min_score
                 and phenotype is not None and phenotype >= config.candidate_min_phenotype
                 and molecular is not None and molecular >= config.candidate_min_molecular):
-            gap = best['score'] - candidates[1]['score'] if len(candidates) > 1 else 1.0
-            return ('candidate' if gap >= CANDIDATE_GAP else 'uncertain'), best['variant_id']
+            return ('uncertain' if uncertainty_reasons(candidates, config) else 'candidate'), best['variant_id']
     # This is the benchmark's abstention token, not proof that no biological cause exists.
     return 'no_convincing_candidate', 'no_causal_variant_in_vcf'

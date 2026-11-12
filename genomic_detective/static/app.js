@@ -10,10 +10,16 @@ const statusNotes = {
   incomplete: 'Данных для завершённого вывода недостаточно. Рейтинг показан для просмотра; итоговый кандидат не назначен.',
   no_convincing_candidate: 'Ни один вариант не прошёл заданные пороги. Это не доказывает отсутствие генетической причины.'};
 const missingTranslations = {
+  'Reviewed condition-specific ClinVar classification unavailable; no positive support assigned': 'Нет классификации ClinVar с предоставленными критериями для выбранного заболевания; положительная поддержка не назначена.',
+  'Exact-allele ClinVar record unavailable in the bundled snapshot; not assumed benign': 'Точный аллель не найден в доступном снимке ClinVar; это не означает доброкачественность.',
+  'NMD, exon relevance and disease-specific PVS1 requirements not established': 'Не установлены NMD, значимость экзона и условия применения PVS1 для этой болезни.',
+  'Generic null consequence does not establish the selected disease mechanism': 'Общая метка потери функции не подтверждает механизм выбранного заболевания.',
   'gnomAD frequency unavailable; not assumed zero': 'Частота gnomAD неизвестна; она не приравнивается к нулю.',
   'Condition-specific ClinVar assertion and review status not retrieved': 'Не получены утверждение ClinVar для конкретного заболевания и статус экспертной проверки.',
   'Family segregation and phase unavailable': 'Нет данных о семейной сегрегации и фазе вариантов.'};
 const warningTranslations = {
+  'ClinVar snapshot covers VEP clinical hits only; missing or unmatched condition evidence supplies no positive support, not a benign classification.': 'Снимок ClinVar охватывает варианты с клиническими аннотациями VEP. Отсутствие записи или совпадения по заболеванию не означает доброкачественность.',
+  'Literature curation was developed after inspection of open cases; development improvement is not independent validation.': 'Литературные сведения собраны после знакомства с открытыми случаями. Улучшение на них не является независимой валидацией.',
   'Synthetic composite genotype; not a full patient genome or clinical benchmark.': 'Синтетический составной генотип: набор не представляет полный геном пациента или клиническую выборку.',
   'Heuristic weights/thresholds are uncalibrated; ranking score is not a probability.': 'Веса и пороги эвристические, без калибровки. Итоговый балл не является вероятностью.',
   'Only GRCh38 SNVs are supported in this baseline.': 'В этой версии поддерживаются только однонуклеотидные варианты GRCh38.',
@@ -146,8 +152,13 @@ function evidenceSection(title, expert, weight) {
     const item = el('li', evidence.criterion === 'phenotype_conflict' ? 'conflict' : '');
     item.append(el('span', '', evidence.text));
     const source = el('span', 'evidence-source');
-    const basis = {database: 'Справочник', prediction: 'Предсказание', compatibility: 'Совместимость'}[evidence.basis] || evidence.basis;
-    source.append(el('span', 'basis', basis), document.createTextNode(evidence.source));
+    const basis = {database: 'Справочник', prediction: 'Предсказание', compatibility: 'Совместимость',
+      experimental_literature: 'Опубликованный эксперимент', literature_context: 'Литература'}[evidence.basis] || evidence.basis;
+    source.append(el('span', 'basis', basis));
+    if (evidence.url?.startsWith('https://')) {
+      const link = el('a', '', evidence.source); link.href = evidence.url;
+      link.target = '_blank'; link.rel = 'noopener noreferrer'; source.append(link);
+    } else source.append(document.createTextNode(evidence.source));
     item.append(source); list.append(item);
   }
   if (!list.children.length) list.append(el('li', '', 'Подтверждающие данные отсутствуют.'));
@@ -167,6 +178,9 @@ function renderDetails(candidate) {
   container.append(heading, disease, facts);
   for (const [key, label] of [['phenotype', 'Фенотип и противоречия'], ['molecular', 'Молекулярные данные'], ['inheritance', 'Наследование']])
     container.append(evidenceSection(label, candidate.experts[key], state.report.config.weights[key]));
+  if (candidate.experts.molecular.scoring_policy === 'context_v2_max_not_sum') {
+    container.append(el('p', 'helper', 'Молекулярная оценка использует максимум поддержки от прогноза, опубликованного функционального эффекта и классификации для конкретной болезни. Связанные свидетельства не суммируются; редкость учитывается отдельно. Балл эвристический.'));
+  }
   if (candidate.missing.length) {
     const section = el('section', 'detail-section'); section.append(el('h4', '', 'Чего не хватает для проверки'));
     const list = el('ul', 'missing-list');
@@ -180,14 +194,26 @@ function renderReport() {
   $('result-case').textContent = `${report.case_id.toUpperCase()} / РЕЗУЛЬТАТ АНАЛИЗА`;
   $('status-title').textContent = statusTitles[report.status] || report.status;
   $('result-profile').textContent = `${report.modified ? 'Изменённый' : 'Исходный'} HPO-профиль · ${new Date(report.created_at).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}`;
-  $('status-note').textContent = statusNotes[report.status] || '';
+  $('result-profile').textContent += ` · Правила ${report.config.version.match(/v\d+(?:\.\d+)*/)?.[0] || report.config.version}`;
+  const reasons = report.uncertainty_reasons || [];
+  if (report.status === 'uncertain' && reasons.some(reason => reason !== 'close_scores'))
+    $('status-title').textContent = 'Требуется проверка доказательств';
+  const descriptions = {
+    close_scores: 'Баллы ведущих вариантов близки: рассмотрите несколько гипотез.',
+    clinical_conflict: 'Клинические интерпретации конфликтуют: требуется проверка.',
+    functional_clinical_conflict: 'Функциональные и клинические сведения требуют совместной проверки.',
+    limited_condition_evidence: 'Подтверждающая молекулярная поддержка выбранного заболевания ограничена. Первое место остаётся гипотезой для предметной проверки.'
+  };
+  $('status-note').textContent = report.status === 'uncertain' && reasons.length
+    ? reasons.map(reason => descriptions[reason] || reason).join(' ') : statusNotes[report.status] || '';
   $('status-note').className = `status-note${report.status === 'candidate' ? '' : ' amber'}`;
   $('variant-count').textContent = report.variant_count;
   $('coverage').textContent = `${(report.annotation_coverage * 100).toFixed(0)}%`;
-  const uncertain = report.status === 'uncertain';
+  const uncertain = report.status === 'uncertain' && report.ambiguity.variant_ids.length >= 2;
   const gap = report.ambiguity.gap_threshold.toLocaleString('ru-RU');
-  $('priority-label').textContent = uncertain ? 'Близкие по баллу варианты' : report.status === 'candidate' ? 'Первый в рейтинге' : 'Итоговый кандидат';
-  $('leading-gene').textContent = uncertain ? report.ambiguity.variant_ids.length : report.status === 'candidate' ? report.candidates[0]?.gene || '—' : '—';
+  const hasHypothesis = ['candidate', 'uncertain'].includes(report.status);
+  $('priority-label').textContent = uncertain ? 'Близкие по баллу варианты' : hasHypothesis ? 'Первый в рейтинге' : 'Итоговый кандидат';
+  $('leading-gene').textContent = uncertain ? report.ambiguity.variant_ids.length : hasHypothesis ? report.candidates[0]?.gene || '—' : '—';
   $('priority-note').textContent = uncertain ? `Разрыв с первым < ${gap}` : '';
   $('ranking-legend').textContent = (uncertain
     ? `Янтарная метка: разрыв с первым < ${gap} — эвристическая группа для совместного рассмотрения. ` : '')
@@ -244,6 +270,8 @@ $('more').addEventListener('click', () => { state.visible += 10; renderRanking()
   try {
     const initial = await api('/api/init'); state.cases = initial.cases; state.token = initial.token;
     $('hpo-credit').textContent = `Human Phenotype Ontology · ${initial.hpo_version || 'версия не передана'}`;
+    $('clinvar-credit').hidden = !initial.clinical_snapshot_date;
+    if (initial.clinical_snapshot_date) $('clinvar-credit').textContent = `ClinVar · снимок ${initial.clinical_snapshot_date}`;
     if (!state.cases.length) throw new Error('В наборе нет случаев.');
     $('case-select').replaceChildren(...state.cases.map(c => {
       const option = el('option', '', c.id.replace('case_', 'Случай ')); option.value = c.id; return option;

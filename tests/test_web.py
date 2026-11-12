@@ -80,7 +80,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(report['status'], 'incomplete')
         self.assertIsNone(report['prediction'])
 
-    def test_ambiguity_marks_all_close_variants_only_when_uncertain(self):
+    def test_score_gap_group_is_separate_from_evidence_uncertainty(self):
         a, b = self.workspace.cases['fixture'].variants
         with patch('genomic_detective.web.VepProvider', return_value=FakeProvider(
                 {a.id: annotation(a, 'GENEA'), b.id: annotation(b, 'GENEA')})):
@@ -89,7 +89,8 @@ class WebTests(unittest.TestCase):
         self.assertEqual(report['ambiguity']['variant_ids'], [a.id, b.id])
         self.assertEqual(report['ambiguity']['gap_threshold'], 0.025)
         clear = self.analyze(['HP:0000002'])
-        self.assertEqual(clear['status'], 'candidate')
+        self.assertEqual(clear['status'], 'uncertain')
+        self.assertEqual(clear['uncertainty_reasons'], ['limited_condition_evidence'])
         self.assertEqual(clear['ambiguity']['variant_ids'], [])
 
     def test_exports_preserve_separate_runs(self):

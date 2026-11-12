@@ -69,7 +69,7 @@ def main():
             assert report['status'] != 'incomplete'
             assert report['ranking_guard']['status'] == report['presentation_guard']['status'] == 'passed'
             assert len(report['candidates']) == 50
-            if report['status'] == 'uncertain':
+            if 'close_scores' in report.get('uncertainty_reasons', []):
                 assert len(report['ambiguity']['variant_ids']) >= 2
             export = json.loads(request(report['downloads']['json']))
             assert export['case_id'] == case['id']

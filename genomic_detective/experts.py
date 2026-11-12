@@ -108,7 +108,28 @@ class PhenotypeExpert:
 
 
 class MolecularExpert:
-    def assess(self, variant: Variant, annotation: dict, gene: str | None) -> dict:
+    def __init__(self, mode='legacy_v1', knowledge=None):
+        if mode not in {'legacy_v1', 'context_v2'}:
+            raise ValueError('Unknown molecular mode')
+        self.mode = mode
+        if mode == 'context_v2' and knowledge is None:
+            from .molecular import default_knowledge
+            knowledge = default_knowledge()
+        self.knowledge = knowledge
+
+    def extract_facts(self, variant, annotation, gene):
+        baseline = self._baseline(variant, annotation, gene)
+        if self.mode == 'context_v2':
+            return self.knowledge.extract(variant, annotation, gene, baseline)
+        return {'baseline': baseline}
+
+    def assess_facts(self, facts, disease_id=None):
+        return self.knowledge.assess(facts, disease_id) if self.mode == 'context_v2' else facts['baseline']
+
+    def assess(self, variant: Variant, annotation: dict, gene: str | None, disease_id=None) -> dict:
+        return self.assess_facts(self.extract_facts(variant, annotation, gene), disease_id)
+
+    def _baseline(self, variant: Variant, annotation: dict, gene: str | None) -> dict:
         if annotation.get('status') != 'annotated':
             return {'score': None, 'evidence': [], 'missing': ['Variant annotation unavailable'],
                     'selected_transcript': None, 'consequences': [], 'components': {}}

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .guards import check_ranking
 from .models import Case, utc_now
-from .ranking import decide, rank
+from .ranking import decide, rank, uncertainty_reasons
 from .reporting import get_reporter, html_report, make_presentation, markdown
 
 
@@ -60,6 +60,7 @@ class Pipeline:
                         'best_variant': candidate['variant_id'], 'disease_id': candidate['disease_id']}
             report = {'schema_version': 1, 'created_at': utc_now(), 'case_id': case.id,
                 'status': status, 'prediction': prediction,
+                'uncertainty_reasons': uncertainty_reasons(candidates, self.config) if status == 'uncertain' else [],
                 'variant_count': len(case.variants), 'annotation_count': count, 'annotation_coverage': coverage,
                 'input': input_data,
                 'input_sha256': hashlib.sha256(json.dumps(input_data, sort_keys=True).encode()).hexdigest(),
@@ -77,6 +78,14 @@ class Pipeline:
                 report['presentation']['model_metadata'] = dict(getattr(self.reporter, 'last_metadata', {}))
             if report['presentation']['warning']:
                 report['warnings'].append(report['presentation']['warning'])
+            if self.config.molecular_mode == 'context_v2':
+                from .molecular import default_knowledge
+                report['sources']['molecular'] = default_knowledge().metadata
+                # Keep this limitation for VEP; independent ClinVar records are now separate.
+                report['warnings'].append('ClinVar snapshot covers VEP clinical hits only; missing or '
+                    'unmatched condition evidence supplies no positive support, not a benign classification.')
+                report['warnings'].append('Literature curation was developed after inspection of open cases; '
+                    'development improvement is not independent validation.')
             reports.append(report)
             if progress:
                 progress(f'{case.id}: {status}; ranking and presentation guards passed')

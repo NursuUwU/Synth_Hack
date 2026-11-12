@@ -47,7 +47,12 @@ class Workspace:
                 'positive': case.positive_hpo, 'excluded': case.excluded_hpo}
 
     def bootstrap(self):
+        clinical_date = None
+        if self.config.molecular_mode == 'context_v2':
+            from .molecular import default_knowledge
+            clinical_date = default_knowledge().metadata['clinical_snapshot_date'][:10]
         return {'token': self.token, 'cases': [self.case_info(c) for c in self.cases.values()],
+                'clinical_snapshot_date': clinical_date,
                 'hpo_version': self.knowledge.manifest.get('ontology_version', 'version unavailable'),
                 'hpo_terms': len(self.knowledge.labels), 'diseases': len(self.knowledge.diseases),
                 'weights': self.config.dictionary()['weights']}
@@ -101,7 +106,10 @@ class Workspace:
             near = [c['variant_id'] for c in report['candidates']
                     if report['candidates'][0]['score'] - c['score'] < CANDIDATE_GAP
                     ] if report['status'] == 'uncertain' else []
+            if len(near) < 2:
+                near = []
             return {'case_id': case.id, 'status': report['status'], 'prediction': report['prediction'],
+                    'uncertainty_reasons': report['uncertainty_reasons'],
                     'ambiguity': {'gap_threshold': CANDIDATE_GAP, 'variant_ids': near},
                     'created_at': report['created_at'], 'modified': modified,
                     'variant_count': report['variant_count'], 'annotation_count': report['annotation_count'],

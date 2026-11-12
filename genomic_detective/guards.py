@@ -5,11 +5,18 @@ from .models import Case, finite_score
 from .ranking import RankingConfig, aggregate
 
 
+REQUIRED_CRITERIA = frozenset({'phenotype_conflict', 'clinical_annotation', 'inheritance',
+    'consequence', 'population_frequency', 'clinical_assertion', 'clinical_context',
+    'mechanism_context', 'functional_effect', 'literature_context', 'evidence_conflict'})
+
+
 class GuardError(ValueError):
     pass
 
 
 def check_ranking(case: Case, candidates: list[dict], annotations: dict, config: RankingConfig):
+    from .experts import MolecularExpert
+    molecular = MolecularExpert(config.molecular_mode)
     expected = {variant.id: variant for variant in case.variants}
     if len(candidates) != len(expected) or {c['variant_id'] for c in candidates} != set(expected):
         raise GuardError('Candidate set does not match input variants')
@@ -41,6 +48,14 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
         if gene and gene not in {t.get('gene_symbol') for t in annotation.get('transcripts', [])}:
             raise GuardError('Gene does not come from variant annotation')
         allowed_sources = {f'VEP:{variant.cache_key}'}
+        if config.molecular_mode == 'context_v2':
+            try:
+                recalculated = molecular.assess(variant, annotation, gene, candidate['disease_id'])
+            except (ValueError, KeyError, TypeError) as error:
+                raise GuardError('Invalid molecular evidence input') from error
+            if recalculated != candidate['experts']['molecular']:
+                raise GuardError('Molecular evidence applicability or score changed')
+            allowed_sources.update(item['source'] for item in recalculated['evidence'])
         if candidate['disease_id']:
             allowed_sources.add(f'HPO:{candidate["disease_id"]}')
         expected_evidence = [ev for expert in candidate['experts'].values() for ev in expert['evidence']]
@@ -52,9 +67,12 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
             if item['id'] in seen_evidence and seen_evidence[item['id']] != item:
                 raise GuardError('Evidence identifier collision')
             seen_evidence[item['id']] = item
-    return {'status': 'passed', 'checks': [
+    checks = [
         'input_variant_identity', 'assembly_and_genotype', 'finite_scores', 'score_recalculation',
-        'rank_order', 'missing_frequency', 'gene_provenance', 'evidence_references'],
+        'rank_order', 'missing_frequency', 'gene_provenance', 'evidence_references']
+    if config.molecular_mode == 'context_v2':
+        checks.extend(['contextual_molecular_recalculation', 'evidence_applicability'])
+    return {'status': 'passed', 'checks': checks,
         'scope': 'Mechanical integrity; source correctness and clinical validity require expert review'}
 
 
@@ -74,9 +92,7 @@ def check_presentation(selection: dict, report: dict, count: int = 3):
         if (not isinstance(selected, list) or not all(isinstance(eid, str) for eid in selected)
                 or len(selected) != len(set(selected)) or not set(selected).issubset(allowed)):
             raise GuardError('Presentation contains unknown or repeated evidence')
-        mandatory = {ev['id'] for ev in candidate['evidence']
-                     if ev['criterion'] in {'phenotype_conflict', 'clinical_annotation', 'inheritance',
-                                             'consequence', 'population_frequency'}}
+        mandatory = {ev['id'] for ev in candidate['evidence'] if ev['criterion'] in REQUIRED_CRITERIA}
         if not mandatory.issubset(selected):
             raise GuardError('Presentation omitted conflicting or qualified evidence')
     return {'status': 'passed', 'checks': ['case_status', 'candidate_order', 'evidence_ids', 'required_caveats'],

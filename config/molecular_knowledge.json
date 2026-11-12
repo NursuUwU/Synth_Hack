@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "version": "molecular-context-v1.2",
+  "review_date": "2026-11-12",
+  "scope": "Prototype evidence curation after inspection of open development cases. Not independent clinical validation or automatic ACMG classification.",
+  "sources": [
+    {
+      "id": "lmna_2003",
+      "type": "primary_research",
+      "year": 2003,
+      "pmid": "12714972",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10540076/",
+      "title": "Recurrent de novo point mutations in lamin A cause Hutchinson–Gilford progeria syndrome",
+      "reviewed_material": "Indexed main-text excerpts, Figure 2 caption and Table 1 context"
+    },
+    {
+      "id": "fbn1_2011",
+      "type": "primary_case_report",
+      "year": 2011,
+      "pmid": "21594993",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21594993/",
+      "title": "Progeroid facial features and lipodystrophy associated with a novel splice site mutation in the final intron of the FBN1 gene",
+      "reviewed_material": "Indexed abstract; full experimental methods not reviewed"
+    },
+    {
+      "id": "fbn1_2014",
+      "type": "primary_case_report",
+      "year": 2014,
+      "pmid": "24613577",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/24613577/",
+      "title": "Neonatal progeroid variant of Marfan syndrome with congenital lipodystrophy results from mutations at the 3' end of FBN1 gene",
+      "reviewed_material": "PubMed abstract; different alternate allele"
+    },
+    {
+      "id": "ptpn11_2017",
+      "type": "primary_research",
+      "year": 2017,
+      "pmid": "28074573",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28074573/",
+      "title": "Structural, Functional, and Clinical Characterization of a Novel PTPN11 Mutation Cluster Underlying Noonan Syndrome",
+      "reviewed_material": "PubMed abstract; individual L261F assay results not independently extracted"
+    },
+    {
+      "id": "kmt2d_2010",
+      "type": "primary_research",
+      "year": 2010,
+      "pmid": "20711175",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2930028/",
+      "title": "Exome sequencing identifies MLL2 mutations as a cause of Kabuki syndrome",
+      "reviewed_material": "Main text and Figure 1 caption"
+    },
+    {
+      "id": "kmt2d_2020",
+      "type": "primary_case_series",
+      "year": 2020,
+      "pmid": "32083401",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7295006/",
+      "title": "Phenotypic Expansion of KMT2D-Related Disorder: Beyond Kabuki Syndrome",
+      "reviewed_material": "Indexed abstract, Table 1, Patient 1 description and discussion excerpts"
+    },
+    {
+      "id": "fgfr2_2000",
+      "type": "primary_functional_research",
+      "year": 2000,
+      "pmid": "11121055",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/11121055/",
+      "title": "Loss of fibroblast growth factor receptor 2 ligand-binding specificity in Apert syndrome",
+      "reviewed_material": "PubMed abstract and Figure 1/2 captions"
+    },
+    {
+      "id": "tgfbr2_2005",
+      "type": "primary_research",
+      "year": 2005,
+      "pmid": "15731757",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15731757/",
+      "title": "A syndrome of altered cardiovascular, craniofacial, neurocognitive and skeletal development caused by mutations in TGFBR1 or TGFBR2",
+      "reviewed_material": "Indexed abstract and Figure 1b/c context from author-institution PDF; complete assays not reviewed"
+    },
+    {
+      "id": "pvs1_2018",
+      "type": "expert_method_recommendations",
+      "year": 2018,
+      "pmid": "30192042",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6185798/",
+      "title": "Recommendations for interpreting the loss of function PVS1 ACMG/AMP variant criterion",
+      "reviewed_material": "Indexed main-text excerpts on mechanism, NMD, splice variants and decision tree"
+    },
+    {
+      "id": "splicing_2023",
+      "type": "expert_method_recommendations",
+      "year": 2023,
+      "pmid": "37352859",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/37352859/",
+      "title": "Using the ACMG/AMP framework to capture evidence related to predicted and observed impact on splicing: Recommendations from the ClinGen SVI Splicing Subgroup",
+      "reviewed_material": "PubMed abstract and indexed summary of Table 3"
+    },
+    {
+      "id": "missense_2022",
+      "type": "expert_method_recommendations",
+      "year": 2022,
+      "pmid": "36413997",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9748256/",
+      "title": "Calibration of computational tools for missense variant pathogenicity classification and ClinGen recommendations for PP3/BP4 criteria",
+      "reviewed_material": "Indexed abstract and author-hosted manuscript excerpts on single-tool choice and calibration"
+    },
+    {
+      "id": "functional_2020",
+      "type": "expert_method_recommendations",
+      "year": 2020,
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6938631/",
+      "title": "Recommendations for application of the functional evidence PS3/BS3 criterion using the ACMG/AMP sequence variant interpretation framework",
+      "reviewed_material": "Indexed main-text excerpts on assay validation"
+    }
+  ],
+  "mechanisms": [
+    {
+      "gene": "LMNA",
+      "disease_ids": [
+        "OMIM:176670"
+      ],
+      "mechanism": "altered_splicing_product",
+      "generic_null_support": false,
+      "source_id": "lmna_2003",
+      "text": "Для прогерии рассматривается аномальный splice-продукт LMNA. Общее предположение потери функции не заменяет проверку этого механизма."
+    },
+    {
+      "gene": "FBN1",
+      "disease_ids": [
+        "OMIM:616914"
+      ],
+      "mechanism": "C_terminal_transcript_effect",
+      "generic_null_support": false,
+      "source_id": "fbn1_2014",
+      "text": "Для marfanoid-progeroid-lipodystrophy важны терминальная область и эффект на транскрипт; общая метка LoF недостаточна."
+    },
+    {
+      "gene": "PTPN11",
+      "disease_ids": [
+        "OMIM:163950"
+      ],
+      "mechanism": "dysregulated_SHP2_signaling",
+      "generic_null_support": false,
+      "source_id": "ptpn11_2017",
+      "text": "Для этой гипотезы Noonan важна дисрегуляция SHP2. Null-последствие само по себе не подтверждает описанный механизм."
+    },
+    {
+      "gene": "KMT2D",
+      "disease_ids": [
+        "OMIM:147920"
+      ],
+      "mechanism": "loss_of_function_or_specific_missense",
+      "generic_null_support": true,
+      "source_id": "kmt2d_2010",
+      "text": "При Kabuki описаны обрывающие и отдельные миссенс-варианты KMT2D. Миссенсу не присваивается PVS1; NMD для null-кандидата требует отдельной проверки."
+    },
+    {
+      "gene": "FGFR2",
+      "disease_ids": [
+        "OMIM:101200"
+      ],
+      "mechanism": "altered_ligand_specificity",
+      "generic_null_support": false,
+      "source_id": "fgfr2_2000",
+      "text": "Для Apert описана изменённая специфичность лигандов FGFR2. Принадлежность гену не подтверждает механизм произвольного варианта."
+    },
+    {
+      "gene": "TGFBR2",
+      "disease_ids": [
+        "OMIM:610168"
+      ],
+      "mechanism": "receptor_pathway_perturbation",
+      "generic_null_support": false,
+      "source_id": "tgfbr2_2005",
+      "text": "При Loeys-Dietz различаются эффект на рецептор и наблюдение сигнального пути в ткани. Универсальное правило TGFBR2=GoF или любой null=патогенный не применяется."
+    }
+  ],
+  "variant_evidence": [
+    {
+      "gene": "LMNA",
+      "assembly": "GRCh38",
+      "variant_id": "chr1:156138613:C:T",
+      "refseq": "NM_170707.4",
+      "hgvsc": "c.1824C>T",
+      "hgvsp": "p.Gly608=",
+      "disease_ids": [
+        "OMIM:176670"
+      ],
+      "kind": "established_functional_effect",
+      "source_ids": [
+        "lmna_2003"
+      ],
+      "support": 0.85,
+      "text": "Для точного c.1824C>T (p.Gly608=) в опубликованной работе показаны аномальный сплайсинг и укороченный белковый продукт (Figure 2). Это сведения о пациентах/клеточных линиях статьи, не эксперимент на данном образце."
+    },
+    {
+      "gene": "FBN1",
+      "assembly": "GRCh38",
+      "variant_id": "chr15:48412568:C:A",
+      "refseq": "NM_000138.5",
+      "hgvsc": "c.8226+1G>T",
+      "hgvsp": null,
+      "disease_ids": [
+        "OMIM:616914"
+      ],
+      "kind": "literature_context",
+      "source_ids": [
+        "fbn1_2011",
+        "fbn1_2014"
+      ],
+      "support": 0,
+      "text": "В работе 2011 года описан наш +1G>T. В работе 2014 года для другого аллеля +1G>A показаны пропуск экзона и стабильная мРНК. Прямое RNA-подтверждение эффекта +1G>T по прочитанному материалу не установлено."
+    },
+    {
+      "gene": "PTPN11",
+      "assembly": "GRCh38",
+      "variant_id": "chr12:112472968:C:T",
+      "refseq": "NM_002834.5",
+      "hgvsc": "c.781C>T",
+      "hgvsp": "p.Leu261Phe",
+      "disease_ids": [
+        "OMIM:163950"
+      ],
+      "kind": "literature_context",
+      "source_ids": [
+        "ptpn11_2017"
+      ],
+      "support": 0,
+      "text": "Работа 2017 года исследует кластер Leu261/Leu262/Arg265: изменения Leu261 имеют особенности каталитической активности и специфичности субстратов. Для точного L261F найден condition-specific ClinVar с экспертной панелью. Индивидуальные assay-результаты L261F и их численная сила не извлечены."
+    },
+    {
+      "gene": "KMT2D",
+      "assembly": "GRCh38",
+      "variant_id": "chr12:49034233:A:G",
+      "refseq": "NM_003482.4",
+      "hgvsc": "c.10574T>C",
+      "hgvsp": "p.Leu3525Pro",
+      "disease_ids": [
+        "OMIM:147920"
+      ],
+      "kind": "literature_context",
+      "source_ids": [
+        "kmt2d_2010",
+        "kmt2d_2020"
+      ],
+      "support": 0,
+      "text": "Leu3525Pro указан у Patient 1 в Table 1 работы 2020 года с расширенным фенотипом. Работа 2010 года преимущественно поддерживает роль обрывающих вариантов MLL2/KMT2D при Kabuki. Функциональный LoF/GoF-эффект точной замены из разобранного материала не установлен."
+    },
+    {
+      "gene": "FGFR2",
+      "assembly": "GRCh38",
+      "variant_id": "chr10:121520163:G:C",
+      "refseq": "NM_000141.5",
+      "hgvsc": "c.755C>G",
+      "hgvsp": "p.Ser252Trp",
+      "disease_ids": [
+        "OMIM:101200"
+      ],
+      "kind": "established_functional_effect",
+      "source_ids": [
+        "fgfr2_2000"
+      ],
+      "support": 0.85,
+      "text": "Для точного S252W показана изменённая специфичность лигандов с сохранённой лиганд-зависимой активацией. Это опубликованное функциональное свидетельство, не автоматическое присвоение PS3."
+    },
+    {
+      "gene": "TGFBR2",
+      "assembly": "GRCh38",
+      "variant_id": "chr3:30672252:G:T",
+      "refseq": "NM_003242.6",
+      "hgvsc": "c.1069G>T",
+      "hgvsp": "p.Gly357Trp",
+      "disease_ids": [
+        "OMIM:610168"
+      ],
+      "kind": "literature_context",
+      "source_ids": [
+        "tgfbr2_2005"
+      ],
+      "support": 0,
+      "text": "G357W входит в спектр вариантов киназного домена первичной работы; ClinVar связывает его с family 4. Работа различает нарушенный рецепторный механизм и повышенную сигнализацию в тканях. Извлечение всех индивидуальных функциональных результатов G357W не завершено; доступна аннотация, абстракт и часть описания Fig.1."
+    }
+  ]
+}
