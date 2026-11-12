@@ -230,17 +230,18 @@ function clipCell(text, target, candidate, title) {
   cell.append(span); return cell;
 }
 function glideTo(element, offset = 16) {
-  // Ease-out scroll: fast start, slowing down as the card approaches; longer trips take longer.
+  // Ease-in-out scroll: gentle start, gentle arrival at the card; longer trips take longer.
   const start = window.scrollY;
   const end = Math.max(0, start + element.getBoundingClientRect().top - offset);
   const distance = end - start;
   if (!distance) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo(0, end); return; }
-  const duration = Math.min(900, 450 + Math.abs(distance) * 0.35);
+  const duration = Math.min(1300, 650 + Math.abs(distance) * 0.45);
   const began = performance.now();
   const step = now => {
     const t = Math.min(1, (now - began) / duration);
-    window.scrollTo(0, start + distance * (1 - Math.pow(1 - t, 4)));
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    window.scrollTo(0, start + distance * eased);
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
