@@ -1,0 +1,14 @@
+{
+  "version": "research-v1.2-disease-context",
+  "weights": {
+    "phenotype": 0.55,
+    "molecular": 0.35,
+    "inheritance": 0.1
+  },
+  "candidate_min_score": 0.45,
+  "candidate_min_phenotype": 0.2,
+  "candidate_min_molecular": 0.3,
+  "min_annotation_coverage": 1.0,
+  "note": "Heuristic ranking, not calibrated probability or ACMG classification. Molecular support=max(0.55*prediction, established functional effect, reviewed condition-specific ClinVar)+0.15*rarity. Dependent support is not summed; unknown evidence is not benign. Outer weights and decision thresholds unchanged.",
+  "molecular_mode": "context_v2"
+}

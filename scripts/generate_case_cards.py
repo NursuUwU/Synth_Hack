@@ -1,6 +1,6 @@
-"""Generate case cards for the defense from the final v1_2 reports.
+"""Generate case cards for the defense from the final v1_3 reports.
 
-Numbers are read from outputs/v1_2 so cards cannot silently drift from the run.
+Numbers are read from outputs/v1_3 so cards cannot silently drift from the run.
 Expected answers come from the organizer label file and are marked as such.
 """
 from __future__ import annotations
@@ -58,7 +58,7 @@ CASES = {
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--reports', type=Path, default=Path('outputs/v1_2'))
+    parser.add_argument('--reports', type=Path, default=Path('outputs/v1_3'))
     parser.add_argument('--dataset', type=Path,
                         default=Path('Project_3_genomic_detecive_for_students.zip'))
     parser.add_argument('--output', type=Path, default=Path('demo/cards'))
@@ -137,7 +137,7 @@ def main():
             f'- Разметка: {label["source_url"]}.',
             '- Исследовательские карточки: `config/molecular_evidence.research.json` ('
             + ', '.join(spec['research']) + ').',
-            '- Финальный прогон: `outputs/v1_2/' + case_id + '.json` (единая версия чисел).',
+            '- Финальный прогон: `outputs/v1_3/' + case_id + '.json` (единая версия чисел).',
             '',
         ]
         cards.append((case_id, '\n'.join(card)))

@@ -142,3 +142,21 @@ class WebTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PortTests(unittest.TestCase):
+    def test_default_port_moves_on_when_busy_but_explicit_port_fails(self):
+        from genomic_detective import web
+        try:
+            busy = LocalServer(web.DEFAULT_PORT, None)
+        except OSError:
+            self.skipTest('Default port is held by another process')
+        try:
+            moved = web.bind(None)
+            self.assertNotEqual(moved.server_port, web.DEFAULT_PORT)
+            moved.server_close()
+            with self.assertRaises(ValueError):
+                web.bind(web.DEFAULT_PORT)
+        finally:
+            busy.server_close()
+

@@ -6,7 +6,7 @@ import hashlib
 import json
 
 from .knowledge import Knowledge
-from .models import Case, Variant
+from .models import CONTEXT_MODES, Case, Variant
 
 
 CONSEQUENCE_SUPPORT = {
@@ -118,10 +118,10 @@ class PhenotypeExpert:
 
 class MolecularExpert:
     def __init__(self, mode='legacy_v1', knowledge=None):
-        if mode not in {'legacy_v1', 'context_v2'}:
+        if mode not in {'legacy_v1'} | CONTEXT_MODES:
             raise ValueError('Unknown molecular mode')
         self.mode = mode
-        if mode == 'context_v2' and knowledge is None:
+        if mode in CONTEXT_MODES and knowledge is None:
             from .molecular import default_knowledge
             knowledge = default_knowledge()
         self.knowledge = knowledge
@@ -130,12 +130,14 @@ class MolecularExpert:
 
     def extract_facts(self, variant, annotation, gene):
         baseline = self._baseline(variant, annotation, gene)
-        if self.mode == 'context_v2':
+        if self.mode in CONTEXT_MODES:
             return self.knowledge.extract(variant, annotation, gene, baseline)
         return {'baseline': baseline}
 
     def assess_facts(self, facts, disease_id=None):
-        return self.knowledge.assess(facts, disease_id) if self.mode == 'context_v2' else facts['baseline']
+        if self.mode not in CONTEXT_MODES:
+            return facts['baseline']
+        return self.knowledge.assess(facts, disease_id, v3=self.mode == 'context_v3')
 
     def extract_facts_cached(self, variant, annotation, gene):
         identity = hashlib.sha256(json.dumps(annotation, sort_keys=True, default=str).encode()).hexdigest()
@@ -148,7 +150,7 @@ class MolecularExpert:
                literature=None) -> dict:
         # The curated layer belongs to v1.2. It is never auto-loaded for the
         # frozen legacy mode; explicit registries remain supported for tests.
-        if literature is None and self.mode == 'context_v2':
+        if literature is None and self.mode in CONTEXT_MODES:
             from .literature import default_registry
             literature = default_registry()
         identity = hashlib.sha256(json.dumps(annotation, sort_keys=True, default=str).encode()).hexdigest()
@@ -279,16 +281,27 @@ class MolecularExpert:
                 'clinical_status': clinical_status}
 
 
+# Exomiser default maximum allele frequencies per mode of inheritance
+# (Jacobsen et al. 2022, doi:10.1093/bib/bbac188): 0.1% dominant or
+# homozygous recessive, 2% compound-heterozygous recessive.
+MOI_MAX_AF = {'AD': 0.001, 'AR_hom': 0.001, 'AR_comphet': 0.02}
+
+
 class InheritanceExpert:
     def __init__(self, knowledge: Knowledge):
         self.kb = knowledge
 
-    def assess(self, variant: Variant, disease_id: str | None) -> dict:
+    def assess(self, variant: Variant, disease_id: str | None, moi_filter: bool = False,
+               allele_frequency: float | None = None, second_allele: bool = False,
+               clinvar_whitelisted: bool = False) -> dict:
         disease = self.kb.diseases.get(disease_id)
         modes = sorted(disease['inheritance']) if disease else []
         if not modes or variant.genotype in {'./.', '.|.'}:
             return {'score': None, 'modes': modes, 'evidence': [],
                     'missing': ['Inheritance mode or genotype unavailable']}
+        if moi_filter:
+            return self._filtered(variant, disease_id, modes, allele_frequency, second_allele,
+                                  clinvar_whitelisted)
         scores, explanations = [], []
         if 'AD' in modes:
             scores.append(1.0 if variant.heterozygous else 0.5)
@@ -306,4 +319,46 @@ class InheritanceExpert:
         return {'score': max(scores), 'modes': modes, 'evidence': [evidence(
             variant.id + ':' + str(disease_id), 'inheritance', text,
             f'HPO:{disease_id}', 'compatibility')],
+            'missing': ['Family segregation and phase unavailable']}
+
+    def _filtered(self, variant, disease_id, modes, af, second_allele, whitelisted=False):
+        """v1.3: Exomiser-style MOI compatibility, including allele frequency per mode."""
+        def rare(limit):
+            # Unknown or absent frequency is not treated as common. Well-supported ClinVar
+            # P/LP alleles bypass frequency limits, as in Exomiser (Jacobsen et al. 2022),
+            # but still need a genotype compatible with the mode.
+            return af is None or af <= limit or whitelisted
+        options, explanations = [], []
+        if 'AD' in modes:
+            ok = rare(MOI_MAX_AF['AD'])
+            options.append(((1.0 if variant.heterozygous else 0.5) if ok else 0.0, ok))
+            explanations.append(
+                ('Генотип совместим с AD.' if variant.heterozygous else 'Гомозигота для AD требует проверки.')
+                if ok else f'Частота {af:.4g} выше порога {MOI_MAX_AF["AD"]} для AD.')
+        if 'AR' in modes:
+            if variant.homozygous_alt:
+                ok = rare(MOI_MAX_AF['AR_hom'])
+                options.append((1.0 if ok else 0.0, ok))
+                explanations.append('Гомозигота совместима с AR.' if ok else
+                                    f'Частота {af:.4g} выше порога {MOI_MAX_AF["AR_hom"]} для гомозиготы AR.')
+            elif second_allele and rare(MOI_MAX_AF['AR_comphet']):
+                options.append((0.6, True))
+                explanations.append('В гене есть второй редкий вариант: компаунд-гетерозиготность AR возможна, '
+                                    'но фаза (trans) не установлена.')
+            else:
+                options.append((0.0, False))
+                explanations.append('Одиночная гетерозигота без второго редкого аллеля в гене не объясняет AR-болезнь.')
+        if not options:
+            return {'score': None, 'modes': modes, 'evidence': [], 'moi_compatible': True,
+                    'missing': ['Inheritance model is outside the autosomal baseline']}
+        compatible = any(ok for _, ok in options)
+        score = max(value for value, ok in options if ok) if compatible else 0.0
+        text = ' '.join(explanations) + ' Семейная сегрегация и происхождение de novo не подтверждены.'
+        if whitelisted and af is not None and af > MOI_MAX_AF['AD']:
+            text += (f' Частота {af:.4g} не исключает гипотезу: аллель имеет сопоставленную запись ClinVar '
+                     'P/LP с ≥2 звёздами (исключение ClinVar whitelist, как в Exomiser).')
+        if not compatible:
+            text += ' Гипотеза не проходит фильтр совместимости с типом наследования и не может быть выдана как прогноз.'
+        return {'score': score, 'modes': modes, 'moi_compatible': compatible, 'evidence': [evidence(
+            variant.id + ':' + str(disease_id), 'inheritance', text, f'HPO:{disease_id}', 'compatibility')],
             'missing': ['Family segregation and phase unavailable']}

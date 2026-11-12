@@ -82,5 +82,9 @@ class Case:
                 raise ValueError(f'Invalid HPO id: {term}')
 
 
+# Disease-context molecular modes; v3 adds the v1.3 rarity, ClinVar and MOI rules.
+CONTEXT_MODES = frozenset({'context_v2', 'context_v3'})
+
+
 def finite_score(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)

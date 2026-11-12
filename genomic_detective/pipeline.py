@@ -8,7 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .guards import check_ranking
-from .models import Case, utc_now
+from .models import CONTEXT_MODES, Case, utc_now
 from .ranking import decide, rank, uncertainty_reasons
 from .reporting import get_reporter, html_report, make_presentation, markdown
 
@@ -27,7 +27,7 @@ class Pipeline:
                                                       offline=offline, progress=progress)
         reports = []
         for case in cases:
-            literature = self.literature if self.config.molecular_mode == 'context_v2' else None
+            literature = self.literature if self.config.molecular_mode in CONTEXT_MODES else None
             candidates = rank(case, annotations, self.knowledge, self.config, literature)
             guard = check_ranking(case, candidates, annotations, self.config, literature)
             count = sum(annotations[v.id]['status'] == 'annotated' for v in case.variants)
@@ -88,7 +88,7 @@ class Pipeline:
                 report['presentation']['model_metadata'] = dict(getattr(self.reporter, 'last_metadata', {}))
             if report['presentation']['warning']:
                 report['warnings'].append(report['presentation']['warning'])
-            if self.config.molecular_mode == 'context_v2':
+            if self.config.molecular_mode in CONTEXT_MODES:
                 from .molecular import default_knowledge
                 report['sources']['molecular'] = default_knowledge().metadata
                 # Keep this limitation for VEP; independent ClinVar records are now separate.

@@ -34,7 +34,7 @@ def parser():
     run.add_argument('--llm', action='store_true', help='Use optional LLM fact selection (GigaChat-2-Pro by default)')
     run.add_argument('--phenotype', type=Path, help='Override HPO profile for exactly one selected case')
     ui = commands.choices['serve']
-    ui.add_argument('--port', type=int, default=8765)
+    ui.add_argument('--port', type=int, help='Default: first free port from 8765 to 8775')
     ui.add_argument('--output', type=Path, default=Path('outputs/ui'))
     ui.add_argument('--config', type=Path, default=Path('config/ranking.json'))
     ui.add_argument('--open', action='store_true', help='Open the local interface in the default browser')

@@ -1,8 +1,8 @@
 """Mechanical integrity guards; not an independent validation of medical truth."""
 from __future__ import annotations
 
-from .models import Case, finite_score
-from .ranking import RankingConfig, aggregate
+from .models import CONTEXT_MODES, Case, finite_score
+from .ranking import RankingConfig, aggregate, order_key
 
 
 REQUIRED_CRITERIA = frozenset({'phenotype_conflict', 'clinical_annotation', 'inheritance',
@@ -25,18 +25,21 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
     expected = {variant.id: variant for variant in case.variants}
     if len(candidates) != len(expected) or {c['variant_id'] for c in candidates} != set(expected):
         raise GuardError('Candidate set does not match input variants')
-    previous = float('inf')
+    previous = None
     seen_evidence = {}
     for position, candidate in enumerate(candidates, 1):
         variant = expected[candidate['variant_id']]
         if candidate['assembly'] != variant.assembly or candidate['genotype'] != variant.genotype:
             raise GuardError('Candidate assembly/genotype changed')
         score = candidate['score']
-        if not finite_score(score) or not 0 <= score <= 1 or score > previous + 1e-12:
-            raise GuardError('Invalid or unsorted ranking score')
+        if not finite_score(score) or not 0 <= score <= 1:
+            raise GuardError('Invalid ranking score')
+        key = order_key(candidate)
+        if previous is not None and (key[0] < previous[0] or key[0] == previous[0] and score > -previous[1] + 1e-12):
+            raise GuardError('Unsorted ranking')
         if candidate['rank'] != position:
             raise GuardError('Incorrect rank number')
-        previous = score
+        previous = key
         if set(candidate['experts']) != set(config.weights):
             raise GuardError('Missing expert result')
         for assessment in candidate['experts'].values():
@@ -46,14 +49,16 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
         if abs(aggregate(candidate['experts'], config) - score) > 1e-12:
             raise GuardError('Aggregate does not match expert scores')
         annotation = annotations[candidate['variant_id']]
-        if annotation.get('gnomad_max_af') is None:
+        absent_rule = (config.molecular_mode == 'context_v3' and annotation.get('status') == 'annotated'
+                       and candidate['experts']['molecular'].get('policy') == 'v1.3')
+        if annotation.get('gnomad_max_af') is None and not absent_rule:
             if candidate['experts']['molecular'].get('components', {}).get('frequency', 0) != 0:
                 raise GuardError('Missing AF was converted into rarity evidence')
         gene = candidate['gene']
         if gene and gene not in {t.get('gene_symbol') for t in annotation.get('transcripts', [])}:
             raise GuardError('Gene does not come from variant annotation')
         allowed_sources = {f'VEP:{variant.cache_key}'}
-        if config.molecular_mode == 'context_v2':
+        if config.molecular_mode in CONTEXT_MODES:
             try:
                 recalculated = molecular.assess(variant, annotation, gene, candidate['disease_id'], literature)
             except (ValueError, KeyError, TypeError) as error:
@@ -88,7 +93,7 @@ def check_ranking(case: Case, candidates: list[dict], annotations: dict, config:
     checks = [
         'input_variant_identity', 'assembly_and_genotype', 'finite_scores', 'score_recalculation',
         'rank_order', 'missing_frequency', 'gene_provenance', 'evidence_references']
-    if config.molecular_mode == 'context_v2':
+    if config.molecular_mode in CONTEXT_MODES:
         checks.extend(['contextual_molecular_recalculation', 'evidence_applicability'])
     checks.append('literature_max_not_sum')
     return {'status': 'passed', 'checks': checks,

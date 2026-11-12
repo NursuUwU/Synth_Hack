@@ -70,7 +70,7 @@ def compare_experts(cases, annotations: dict, knowledge, config, dataset_path: P
     """
     from .guards import check_ranking
     from .literature import default_registry
-    from .models import utc_now
+    from .models import CONTEXT_MODES, utc_now
     from .ranking import rank
 
     literature = default_registry()
@@ -95,7 +95,7 @@ def compare_experts(cases, annotations: dict, knowledge, config, dataset_path: P
         configs[method] = method_config.dictionary() | {'weights': dict(method_config.weights)}
         rankings[method] = {}
         for case in included:
-            applied = literature if method_config.molecular_mode == 'context_v2' else None
+            applied = literature if method_config.molecular_mode in CONTEXT_MODES else None
             candidates = rank(case, annotations, knowledge, method_config, applied)
             check_ranking(case, candidates, annotations, method_config, applied)
             rankings[method][case.id] = candidates

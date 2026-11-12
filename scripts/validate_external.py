@@ -231,9 +231,11 @@ def verify_reference(result, reference):
     key = lambda row: (row['model'], row['case_id'])
     actual = {key(row): row for row in result['cases']}
     saved = {key(row): row for row in expected['cases']}
-    if set(actual) != set(saved):
+    # Models added after a reference was frozen are allowed; every frozen row must replay.
+    if not set(saved) <= set(actual):
         raise ValueError('Replay case/model set differs from frozen reference')
-    for identifier, row in actual.items():
+    for identifier in saved:
+        row = actual[identifier]
         for field in ['expected_rank', 'status', 'prediction', 'annotation_coverage', 'config_sha256']:
             if row.get(field) != saved[identifier].get(field):
                 raise ValueError(f'Frozen replay changed: {identifier} / {field}')
@@ -261,9 +263,11 @@ def run(output, offline, reference=None):
     clinical = fetch_clinical(annotations, output, offline)
     molecular = MolecularKnowledge(copy.deepcopy(default_knowledge().rules), clinical)
     knowledge = Knowledge.load(ROOT / 'data/knowledge')
-    base = RankingConfig.load(ROOT / 'config/ranking.json')
-    configs = {'v1.1': RankingConfig.load(ROOT / 'config/ranking-v1.1.json'), 'v1.2': base,
-               'phenotype_only': replace(base, weights={'phenotype': 1., 'molecular': 0., 'inheritance': 0.})}
+    # The phenotype-only comparator stays tied to frozen v1.2 so earlier references replay unchanged.
+    frozen = RankingConfig.load(ROOT / 'config/ranking-v1.2.json')
+    configs = {'v1.1': RankingConfig.load(ROOT / 'config/ranking-v1.1.json'), 'v1.2': frozen,
+               'v1.3': RankingConfig.load(ROOT / 'config/ranking.json'),
+               'phenotype_only': replace(frozen, weights={'phenotype': 1., 'molecular': 0., 'inheritance': 0.})}
     # Labels are consulted below only AFTER all model rankings have been computed.
     reports = {}
     with patch('genomic_detective.molecular.default_knowledge', return_value=molecular):

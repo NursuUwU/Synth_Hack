@@ -201,7 +201,8 @@ def main():
         cache.close()
     labels = {row['case_id']: row for row in read_development_labels(ROOT / 'Project_3_genomic_detecive_for_students.zip')}
     configs = {'v1.1': RankingConfig.load(ROOT / 'config/ranking-v1.1.json'),
-               'v1.2': RankingConfig.load(ROOT / 'config/ranking.json')}
+               'v1.2': RankingConfig.load(ROOT / 'config/ranking-v1.2.json'),
+               'v1.3': RankingConfig.load(ROOT / 'config/ranking.json')}
     result = execute(cases, annotations, source, Knowledge.load(ROOT / 'data/knowledge'), configs, labels, args.output)
     return int(any(r['status'] == 'error' for r in result['cases']))
 

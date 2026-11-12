@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from .annotations import AnnotationCache, VepProvider
 from .dataset import Dataset
 from .knowledge import Knowledge
+from .models import CONTEXT_MODES
 from .pipeline import Pipeline, write_run
 from .ranking import CANDIDATE_GAP, RankingConfig
 
@@ -50,7 +51,7 @@ class Workspace:
 
     def bootstrap(self):
         clinical_date = None
-        if self.config.molecular_mode == 'context_v2':
+        if self.config.molecular_mode in CONTEXT_MODES:
             from .molecular import default_knowledge
             clinical_date = default_knowledge().metadata['clinical_snapshot_date'][:10]
         return {'token': self.token, 'cases': [self.case_info(c) for c in self.cases.values()],
@@ -133,6 +134,9 @@ class Workspace:
         directory, case_id = self.exports[run_id]
         name = f'{case_id}_ranking.tsv' if kind == 'tsv' else f'{case_id}.{kind}'
         return directory / name
+
+
+DEFAULT_PORT = 8765
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -228,17 +232,40 @@ class Handler(BaseHTTPRequestHandler):
             self.send(500, {'error': 'Анализ не завершён. Проверьте локальный кэш и справочники; повторите запуск через CLI для диагностики.'})
 
 
+def port_in_use(error):
+    return getattr(error, 'winerror', None) == 10048 or error.errno in {48, 98, 10048}
+
+
+def bind(port):
+    # Bind first, before expensive HPO loading. An explicit busy port fails immediately;
+    # the default moves on, since a stale earlier launch often still holds 8765.
+    if port is not None:
+        if not 0 <= port <= 65535:
+            raise ValueError('Port must be between 0 and 65535')
+        try:
+            return LocalServer(port, None)
+        except OSError as error:
+            if port_in_use(error):
+                raise ValueError(f'Port {port} is already in use. Open http://127.0.0.1:{port}/ '
+                                 'or start with --port 8766.') from error
+            raise
+    for candidate in range(DEFAULT_PORT, DEFAULT_PORT + 11):
+        try:
+            server = LocalServer(candidate, None)
+        except OSError as error:
+            if port_in_use(error):
+                continue
+            raise
+        if candidate != DEFAULT_PORT:
+            print(f'Port {DEFAULT_PORT} is busy (probably an earlier launch is still running); '
+                  f'using {candidate}.', flush=True)
+        return server
+    raise ValueError(f'Ports {DEFAULT_PORT}-{DEFAULT_PORT + 10} are all in use. Close earlier launches '
+                     '(python.exe in Task Manager) or start with --port <number>.')
+
+
 def serve(args):
-    if not 0 <= args.port <= 65535:
-        raise ValueError('Port must be between 0 and 65535')
-    # Bind first, before expensive HPO loading. A second launch must fail immediately.
-    try:
-        server = LocalServer(args.port, None)
-    except OSError as error:
-        if getattr(error, 'winerror', None) == 10048 or error.errno in {48, 98, 10048}:
-            raise ValueError(f'Port {args.port} is already in use. Open http://127.0.0.1:{args.port}/ '
-                             'or start with --port 8766.') from error
-        raise
+    server = bind(args.port)
     with server:
         if (args.cache.resolve() == Path('data/cache/vep.sqlite3').resolve()
                 and args.knowledge.resolve() == Path('data/knowledge').resolve()):

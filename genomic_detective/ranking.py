@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .experts import InheritanceExpert, MolecularExpert, PhenotypeExpert
 from .knowledge import Knowledge
-from .models import Case, finite_score
+from .models import CONTEXT_MODES, Case, finite_score
 
 
 # Research heuristic shared with the UI; not a calibrated confidence interval.
@@ -32,7 +32,7 @@ class RankingConfig:
         return result
 
     def validate(self):
-        if self.molecular_mode not in {'legacy_v1', 'context_v2'}:
+        if self.molecular_mode not in {'legacy_v1'} | CONTEXT_MODES:
             raise ValueError('Unknown molecular mode')
         if set(self.weights) != {'phenotype', 'molecular', 'inheritance'}:
             raise ValueError('Exactly three expert weights are required')
@@ -51,6 +51,38 @@ class RankingConfig:
         return hashlib.sha256(json.dumps(self.dictionary(), sort_keys=True).encode()).hexdigest()
 
 
+def moi_compatible(candidate: dict) -> bool:
+    # Only v1.3 inheritance assessments carry the flag; earlier versions never filter.
+    return candidate['experts']['inheritance'].get('moi_compatible', True)
+
+
+def order_key(candidate: dict):
+    # v1.3 places MOI-incompatible hypotheses after compatible ones (Exomiser-style filter).
+    return (not moi_compatible(candidate), -candidate['score'])
+
+
+def rare_alleles_by_gene(case: Case, annotations: dict) -> dict:
+    from .experts import MOI_MAX_AF
+    genes = {}
+    for variant in case.variants:
+        annotation = annotations[variant.id]
+        af = annotation.get('gnomad_max_af')
+        if annotation.get('status') != 'annotated' or af is not None and af > MOI_MAX_AF['AR_comphet']:
+            continue
+        for entry in annotation.get('transcripts', []):
+            if entry.get('gene_symbol'):
+                genes.setdefault(entry['gene_symbol'], set()).add(variant.id)
+    return genes
+
+
+def clinvar_whitelisted(molecular: dict) -> bool:
+    # Disease-matched, reviewed (>=2 stars) P/LP ClinVar assertion; never gene-level records.
+    return molecular.get('clinical_context_status') == 'matched' and any(
+        a['review_stars'] >= 2 and 'pathogenic' in a['classification'].lower()
+        and 'conflict' not in a['classification'].lower() and 'benign' not in a['classification'].lower()
+        for a in molecular.get('clinical_assertions', []))
+
+
 def aggregate(experts: dict, config: RankingConfig) -> float:
     return sum(config.weights[name] * (assessment['score'] if assessment['score'] is not None else 0.0)
                for name, assessment in experts.items())
@@ -58,12 +90,14 @@ def aggregate(experts: dict, config: RankingConfig) -> float:
 
 def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingConfig,
          literature=None) -> list[dict]:
-    if literature is None and config.molecular_mode == 'context_v2':
+    if literature is None and config.molecular_mode in CONTEXT_MODES:
         from .literature import default_registry
         literature = default_registry()
     phenotype = PhenotypeExpert(knowledge)
     molecular = MolecularExpert(config.molecular_mode)
     inheritance = InheritanceExpert(knowledge)
+    moi_filter = config.molecular_mode == 'context_v3'
+    rare_alleles = rare_alleles_by_gene(case, annotations) if moi_filter else {}
     candidates = []
     for variant in case.variants:
         annotation = annotations[variant.id]
@@ -77,7 +111,9 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
             for pheno in hypotheses:
                 mol = molecular.assess(variant, annotation, gene, pheno['disease_id'], literature)
                 experts = {'phenotype': pheno, 'molecular': mol,
-                           'inheritance': inheritance.assess(variant, pheno['disease_id'])}
+                           'inheritance': inheritance.assess(
+                               variant, pheno['disease_id'], moi_filter, annotation.get('gnomad_max_af'),
+                               bool(rare_alleles.get(gene, set()) - {variant.id}), clinvar_whitelisted(mol))}
                 alternatives.append({'variant_id': variant.id, 'assembly': variant.assembly,
                     'genotype': variant.genotype, 'gene': gene, 'disease_id': pheno['disease_id'],
                     'disease_name': pheno['disease_name'], 'score': aggregate(experts, config),
@@ -85,7 +121,7 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
                     'evidence': [item for assessment in experts.values() for item in assessment['evidence']],
                     'missing': sorted({item for assessment in experts.values() for item in assessment['missing']}),
                     'annotation_status': annotation['status']})
-        ordered = sorted(alternatives, key=lambda item: (-item['score'], item['gene'] or '', item['disease_id'] or ''))
+        ordered = sorted(alternatives, key=lambda item: (*order_key(item), item['gene'] or '', item['disease_id'] or ''))
         best = ordered[0]
         gene_alternatives = {}
         for item in ordered:
@@ -98,7 +134,7 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
             {'disease_id': item['disease_id'], 'score': item['score']}
             for item in ordered if item is not best and item['gene'] == best['gene']][:5]
         candidates.append(best)
-    candidates.sort(key=lambda item: (-item['score'], item['variant_id']))
+    candidates.sort(key=lambda item: (*order_key(item), item['variant_id']))
     for position, candidate in enumerate(candidates, 1):
         candidate['rank'] = position
     return candidates
@@ -108,9 +144,10 @@ def uncertainty_reasons(candidates, config):
     if not candidates:
         return []
     reasons = []
-    if len(candidates) > 1 and candidates[0]['score'] - candidates[1]['score'] < CANDIDATE_GAP:
+    rivals = [c for c in candidates[1:] if moi_compatible(c)]
+    if rivals and candidates[0]['score'] - rivals[0]['score'] < CANDIDATE_GAP:
         reasons.append('close_scores')
-    if config.molecular_mode == 'context_v2':
+    if config.molecular_mode in CONTEXT_MODES:
         assessment = candidates[0]['experts']['molecular']
         if assessment.get('clinical_conflict'):
             reasons.append('clinical_conflict')
@@ -120,6 +157,8 @@ def uncertainty_reasons(candidates, config):
         if (not components.get('clinical', 0) and not components.get('functional', 0)
                 and not assessment.get('literature_applied')):
             reasons.append('limited_condition_evidence')
+        elif assessment.get('clinical_context_status') == 'gene_level' and not components.get('functional', 0):
+            reasons.append('gene_level_clinical_only')
     return reasons
 
 
@@ -128,6 +167,8 @@ def decide(candidates: list[dict], coverage: float, knowledge_ready: bool, confi
         return 'incomplete', None
     if candidates:
         best = candidates[0]
+        if not moi_compatible(best):
+            return 'no_convincing_candidate', 'no_causal_variant_in_vcf'
         phenotype = best['experts']['phenotype']['score']
         molecular = best['experts']['molecular']['score']
         if (best['score'] >= config.candidate_min_score

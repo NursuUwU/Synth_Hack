@@ -1,14 +1,14 @@
 {
-  "version": "research-v1.2-disease-context",
+  "version": "research-v1.3-moi-phenotype-gate",
   "weights": {
     "phenotype": 0.55,
     "molecular": 0.35,
     "inheritance": 0.1
   },
   "candidate_min_score": 0.45,
-  "candidate_min_phenotype": 0.2,
+  "candidate_min_phenotype": 0.5,
   "candidate_min_molecular": 0.3,
   "min_annotation_coverage": 1.0,
-  "note": "Heuristic ranking, not calibrated probability or ACMG classification. Molecular support=max(0.55*prediction, established functional effect, reviewed condition-specific ClinVar)+0.15*rarity. Dependent support is not summed; unknown evidence is not benign. Outer weights and decision thresholds unchanged.",
-  "molecular_mode": "context_v2"
+  "note": "Heuristic ranking, not calibrated probability or ACMG classification. v1.3 adds: Exomiser-style MOI compatibility (AF <=0.1% AD/AR-hom, <=2% AR comp-het; single AR heterozygote without a second rare allele is filtered), weak rarity 0.5 for alleles absent from VEP gnomAD data, gene-level ClinVar P/LP support 0.5 for reviewed records with unspecified condition, and phenotype >=0.5 for a candidate status. Outer weights unchanged.",
+  "molecular_mode": "context_v3"
 }

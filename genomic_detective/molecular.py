@@ -13,6 +13,10 @@ from .models import Variant, finite_score
 DISRUPTIVE = {'stop_gained', 'frameshift_variant', 'splice_acceptor_variant',
               'splice_donor_variant', 'start_lost', 'stop_lost'}
 ROOT = Path(__file__).resolve().parents[1]
+ABSENT_FREQUENCY_NOTE = 'gnomAD frequency unavailable; not assumed zero'
+# v1.3 heuristic levels, below the 0.8 matched-disease support and 1.0 observed rarity.
+GENE_LEVEL_CLINICAL_SUPPORT = 0.5
+ABSENT_FROM_GNOMAD_RARITY = 0.5
 
 
 class MolecularKnowledge:
@@ -88,7 +92,7 @@ class MolecularKnowledge:
         return any(not a['compound_condition'] and disease_id in a['condition_ids']
                    and set(ids).intersection(a['condition_ids']) for a in assertions)
 
-    def assess(self, facts, disease_id):
+    def assess(self, facts, disease_id, v3=False):
         from .experts import clinical_support, evidence
         base = copy.deepcopy(facts['baseline'])
         if base['score'] is None:
@@ -133,15 +137,40 @@ class MolecularKnowledge:
             item = evidence(subject, 'clinical_assertion', text, assertion['source'], 'database')
             item['url'] = assertion['url']
             items.append(item)
+        gene_level = []
+        if v3 and not reviewed:
+            # v1.3: a reviewed P/LP assertion whose condition is unspecified or the
+            # gene-level umbrella still supports the allele, but less than a matched disease.
+            generic = {'not provided', 'not specified', f'{gene}-related disorder'.lower()}
+            gene_level = [a for a in assertions if not a['compound_condition'] and a['review_stars'] >= 1
+                          and a not in matched and a['conditions']
+                          and all(c.lower() in generic for c in a['conditions'])]
+            labels = [a['classification'] for a in gene_level]
+            level_status, level_support = clinical_support(labels)
+            if level_status in {'pathogenic', 'likely_pathogenic'} and level_support:
+                status, clinical = level_status, GENE_LEVEL_CLINICAL_SUPPORT
+                for assertion in gene_level:
+                    item = evidence(subject, 'clinical_assertion',
+                        f"ClinVar {assertion['accession']}: {assertion['classification']}; "
+                        f"заболевание не конкретизировано ({'; '.join(assertion['conditions'])}); "
+                        f"review status: {assertion['review_status']} ({assertion['review_stars']} зв.). "
+                        f'Пониженная поддержка {GENE_LEVEL_CLINICAL_SUPPORT} на уровне гена: '
+                        'соответствие выбранной болезни ClinVar не устанавливает.', assertion['source'], 'database')
+                    item['url'] = assertion['url']
+                    items.append(item)
+            else:
+                gene_level = []
         for record in facts['clinical']:
-            skipped = [a for a in record['assertions'] if a not in matched]
+            skipped = [a for a in record['assertions'] if a not in matched and a not in gene_level]
             if skipped:
                 source = 'ClinVar:' + record['accession']
                 items.append(evidence(subject, 'clinical_context',
                     f'{len(skipped)} записей ClinVar для другого, составного или несопоставленного '
                     'заболевания не добавляют поддержку выбранной гипотезе.', source, 'database'))
-        if not reviewed:
+        if not reviewed and not gene_level:
             missing.append('Reviewed condition-specific ClinVar classification unavailable; no positive support assigned')
+        elif gene_level:
+            missing.append('ClinVar condition not specified; gene-level support only')
         if not facts['clinical']:
             missing.append('Exact-allele ClinVar record unavailable in the bundled snapshot; not assumed benign')
         consequence = base['components']['consequence']
@@ -187,15 +216,34 @@ class MolecularKnowledge:
                 'Функциональное литературное свидетельство и клиническая интерпретация требуют '
                 'совместной проверки; функциональное влияние не равно патогенности.',
                 'Policy:molecular-context-v1.2', 'compatibility'))
+        if v3:
+            validity = gene_disease_validity(gene, disease_id)
+            if validity:
+                items.append(evidence(subject, 'gene_disease_validity', validity['text'],
+                                      'GenCC:' + gene, 'database'))
+                if not validity['exact']:
+                    missing.append('GenCC gene-disease validity for the selected disease ID not found')
         frequency = base['components']['frequency']
+        if v3 and ABSENT_FREQUENCY_NOTE in base['missing']:
+            # v1.3: VEP returned the allele with no gnomAD record. This differs from a
+            # failed annotation and is weak rarity support (PM2_Supporting-like).
+            frequency = ABSENT_FROM_GNOMAD_RARITY
+            missing = [text for text in missing if text != ABSENT_FREQUENCY_NOTE]
+            missing.append('Allele absent from VEP gnomAD data; absence is weak rarity evidence only')
+            items.append(evidence(subject, 'population_frequency',
+                'Аллель не найден в данных gnomAD, возвращённых VEP 116 при успешной аннотации. '
+                f'Слабый довод редкости ({ABSENT_FROM_GNOMAD_RARITY}); отсутствие в базе не является '
+                'доказательством патогенности.', 'VEP:' + variant.cache_key, 'database'))
         support_block = max(0.55 * consequence, functional, clinical)
         base.update(score=support_block + 0.15 * frequency,
             components={'consequence': consequence, 'functional': functional,
                         'clinical': clinical, 'frequency': frequency},
-            support_block=support_block, scoring_policy='context_v2_max_not_sum',
+            support_block=support_block, scoring_policy='context_v2_max_not_sum', policy='v1.3' if v3 else 'v1.2',
             context_disease_id=disease_id, mechanism=mechanism_name,
             clinical_status=status, clinical_conflict=conflict,
-            clinical_context_status='matched' if reviewed else 'unreviewed' if matched else 'unresolved',
+            clinical_context_status=('matched' if reviewed else 'gene_level' if gene_level
+                                     else 'unreviewed' if matched else 'unresolved'),
+            gene_level_assertions=gene_level,
             functional_clinical_conflict=contradiction,
             clinical_assertions=matched, curated_evidence=applied,
             evidence=items, missing=sorted(set(missing)))
@@ -210,3 +258,37 @@ class MolecularKnowledge:
 def default_knowledge():
     return MolecularKnowledge.load(ROOT / 'config/molecular_knowledge.json',
                                    ROOT / 'resources/clinvar-snapshot.json')
+
+
+GENCC_RANK = ['Definitive', 'Strong', 'Moderate', 'Supportive', 'Limited',
+              'Disputed Evidence', 'Refuted Evidence', 'No Known Disease Relationship']
+
+
+@lru_cache(maxsize=1)
+def gencc_snapshot():
+    path = ROOT / 'resources/gencc-snapshot.json'
+    return json.loads(path.read_text(encoding='utf-8')) if path.is_file() else None
+
+
+def gene_disease_validity(gene, disease_id):
+    """GenCC curation summary; display-only evidence that never changes the score."""
+    snapshot = gencc_snapshot()
+    records = (snapshot or {}).get('records', {}).get(gene) if gene else None
+    if not records:
+        return None
+    def order(record):
+        title = record['classification']
+        return GENCC_RANK.index(title) if title in GENCC_RANK else len(GENCC_RANK)
+    exact = sorted((r for r in records if disease_id in r['disease_ids']), key=order)
+    date = snapshot['fetched_at'][:10]
+    if exact:
+        parts = '; '.join(f"{r['classification']} ({r['submitter']}, {r['moi']})" for r in exact[:4])
+        text = (f'GenCC, связь {gene} — {disease_id}: {parts}. Это сила связи гена с болезнью, '
+                f'а не патогенность варианта; балл не меняет. Снимок {date}.')
+    else:
+        best = min(records, key=order)
+        text = (f'GenCC: для {disease_id} записей нет (возможно, другой словарь ID); у гена {gene} '
+                f'{len(records)} записей, наиболее сильная — {best["classification"]} для «{best["disease"]}». '
+                f'Связь с выбранной болезнью требует проверки; балл не меняет. Снимок {date}.')
+    return {'exact': bool(exact), 'text': text}
+
