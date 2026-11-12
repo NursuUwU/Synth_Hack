@@ -52,6 +52,15 @@ class Pipeline:
                 warnings.append(f'{len(case.variants) - count} variants lack annotations; missingness is not benign evidence.')
             if case.metadata.get('phenotype_truncated'):
                 warnings.append('The organizer marked the phenotype profile as truncated.')
+            if case.metadata.get('inheritance_hint'):
+                warnings.append(f"Inheritance mode set by the user: {case.metadata['inheritance_hint']}; "
+                                'hypotheses described only with other modes are filtered.')
+            if case.metadata.get('uploaded'):
+                warnings.append('User-uploaded case: variants absent from the local cache were annotated '
+                                'online (Ensembl VEP, ClinVar); input is not organizer data.')
+                if case.metadata.get('skipped_records'):
+                    warnings.append('Uploaded VCF records skipped: ' + ', '.join(
+                        f'{k}={v}' for k, v in sorted(case.metadata['skipped_records'].items())))
             if case.metadata.get('phenotype_override'):
                 warnings.append('Phenotype was explicitly overridden for this run; not the original case profile.')
             unknown = sorted(term for term in case.positive_hpo | case.excluded_hpo

@@ -33,6 +33,7 @@ def parser():
     run.add_argument('--online', action='store_true', help='Allow requests for uncached VEP annotations')
     run.add_argument('--llm', action='store_true', help='Use optional LLM fact selection (GigaChat-2-Pro by default)')
     run.add_argument('--phenotype', type=Path, help='Override HPO profile for exactly one selected case')
+    run.add_argument('--inheritance', choices=['AD', 'AR'], help='Known mode of inheritance (v1.3 filter)')
     ui = commands.choices['serve']
     ui.add_argument('--port', type=int, help='Default: first free port from 8765 to 8775')
     ui.add_argument('--output', type=Path, default=Path('outputs/ui'))
@@ -142,6 +143,9 @@ def main(argv=None):
             cases[0].positive_hpo, cases[0].excluded_hpo = positive, excluded
             cases[0].__post_init__()
             cases[0].metadata['phenotype_override'] = str(args.phenotype.name)
+        if args.inheritance:
+            for case in cases:
+                case.metadata['inheritance_hint'] = args.inheritance
         kb = Knowledge.load(args.knowledge)
         config = RankingConfig.load(args.config)
         pipeline = Pipeline(provider, kb, config, llm=args.llm)

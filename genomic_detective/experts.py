@@ -293,15 +293,29 @@ class InheritanceExpert:
 
     def assess(self, variant: Variant, disease_id: str | None, moi_filter: bool = False,
                allele_frequency: float | None = None, second_allele: bool = False,
-               clinvar_whitelisted: bool = False) -> dict:
+               clinvar_whitelisted: bool = False, stated_mode: str | None = None) -> dict:
         disease = self.kb.diseases.get(disease_id)
         modes = sorted(disease['inheritance']) if disease else []
+        if moi_filter and stated_mode and not modes and disease:
+            # A disease record without modes must not bypass the stated mode: use the modes
+            # described for the same gene's other diseases (e.g. Orphanet vs OMIM records).
+            gene_modes = sorted({mode for gene in disease.get('genes', ())
+                                 for other in self.kb.gene_diseases.get(gene, ())
+                                 for mode in self.kb.diseases[other]['inheritance']} & {'AD', 'AR'})
+            if gene_modes and stated_mode not in gene_modes:
+                text = (f'Для этой болезни тип наследования не указан; для других болезней гена описан только '
+                        f'{", ".join(gene_modes)}. Заданный тип {stated_mode} с ним не совпадает.')
+                return {'score': 0.0, 'modes': [], 'gene_modes': gene_modes, 'moi_compatible': False,
+                        'stated_mode': stated_mode, 'evidence': [evidence(
+                            variant.id + ':' + str(disease_id), 'inheritance', text,
+                            f'HPO:{disease_id}', 'compatibility')],
+                        'missing': ['Inheritance mode of this disease record unavailable']}
         if not modes or variant.genotype in {'./.', '.|.'}:
             return {'score': None, 'modes': modes, 'evidence': [],
                     'missing': ['Inheritance mode or genotype unavailable']}
         if moi_filter:
             return self._filtered(variant, disease_id, modes, allele_frequency, second_allele,
-                                  clinvar_whitelisted)
+                                  clinvar_whitelisted, stated_mode)
         scores, explanations = [], []
         if 'AD' in modes:
             scores.append(1.0 if variant.heterozygous else 0.5)
@@ -321,7 +335,7 @@ class InheritanceExpert:
             f'HPO:{disease_id}', 'compatibility')],
             'missing': ['Family segregation and phase unavailable']}
 
-    def _filtered(self, variant, disease_id, modes, af, second_allele, whitelisted=False):
+    def _filtered(self, variant, disease_id, modes, af, second_allele, whitelisted=False, stated=None):
         """v1.3: Exomiser-style MOI compatibility, including allele frequency per mode."""
         def rare(limit):
             # Unknown or absent frequency is not treated as common. Well-supported ClinVar
@@ -329,6 +343,16 @@ class InheritanceExpert:
             # but still need a genotype compatible with the mode.
             return af is None or af <= limit or whitelisted
         options, explanations = [], []
+        if stated and {'AD', 'AR'} & set(modes) and stated not in modes:
+            # The clinician's stated mode excludes hypotheses described only with other modes.
+            text = (f'Заданный тип наследования {stated} не описан для этой болезни '
+                    f'({", ".join(modes)}). Гипотеза не может быть выдана как прогноз.')
+            return {'score': 0.0, 'modes': modes, 'moi_compatible': False, 'stated_mode': stated,
+                    'evidence': [evidence(variant.id + ':' + str(disease_id), 'inheritance', text,
+                                          f'HPO:{disease_id}', 'compatibility')],
+                    'missing': ['Family segregation and phase unavailable']}
+        if stated:
+            modes = [stated]
         if 'AD' in modes:
             ok = rare(MOI_MAX_AF['AD'])
             options.append(((1.0 if variant.heterozygous else 0.5) if ok else 0.0, ok))

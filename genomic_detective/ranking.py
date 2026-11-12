@@ -98,6 +98,7 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
     inheritance = InheritanceExpert(knowledge)
     moi_filter = config.molecular_mode == 'context_v3'
     rare_alleles = rare_alleles_by_gene(case, annotations) if moi_filter else {}
+    stated_mode = case.metadata.get('inheritance_hint') if moi_filter else None
     candidates = []
     for variant in case.variants:
         annotation = annotations[variant.id]
@@ -113,7 +114,8 @@ def rank(case: Case, annotations: dict, knowledge: Knowledge, config: RankingCon
                 experts = {'phenotype': pheno, 'molecular': mol,
                            'inheritance': inheritance.assess(
                                variant, pheno['disease_id'], moi_filter, annotation.get('gnomad_max_af'),
-                               bool(rare_alleles.get(gene, set()) - {variant.id}), clinvar_whitelisted(mol))}
+                               bool(rare_alleles.get(gene, set()) - {variant.id}), clinvar_whitelisted(mol),
+                               stated_mode)}
                 alternatives.append({'variant_id': variant.id, 'assembly': variant.assembly,
                     'genotype': variant.genotype, 'gene': gene, 'disease_id': pheno['disease_id'],
                     'disease_name': pheno['disease_name'], 'score': aggregate(experts, config),

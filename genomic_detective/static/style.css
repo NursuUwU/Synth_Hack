@@ -15,3 +15,8 @@
 .view-badge{background:#e0e7ed;border:1px solid #cfdbe3;color:#4f6677}
 .metric small{display:block;font-size:9px;line-height:1.6;color:var(--muted);margin-top:5px}
 .rank-badge{color:#526b7c}
+.upload-toggle{display:block;margin:8px 0 0}
+.upload-form{margin:10px 0 4px;padding:12px;border:1px dashed #cfdcd6;border-radius:8px;background:#fbfdfc}
+.upload-form input{margin-bottom:12px}
+.upload-form input[type=file]{padding:8px;min-height:0}
+.inheritance-wrap{margin-top:21px}

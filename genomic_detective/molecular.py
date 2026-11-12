@@ -28,16 +28,8 @@ class MolecularKnowledge:
         self.rules, self.snapshot = rules, snapshot
         self.sources = {s['id']: s for s in rules['sources']}
         self.records = snapshot['records']
-        from .clinvar import review_stars
         for key, records in self.records.items():
-            for record in records:
-                if record['variant_id'] != key or record['assembly'] != 'GRCh38':
-                    raise ValueError('ClinVar snapshot allele/assembly mismatch')
-                for assertion in record['assertions']:
-                    if (assertion['source'] != 'ClinVar:' + assertion['accession']
-                            or assertion['review_stars'] != review_stars(assertion['review_status'])
-                            or not isinstance(assertion['compound_condition'], bool)):
-                        raise ValueError('Invalid ClinVar assertion provenance/review status')
+            self.validate_records(key, records)
         self.by_variant = {}
         for record in rules['variant_evidence']:
             fields = record['variant_id'].split(':')
@@ -62,6 +54,32 @@ class MolecularKnowledge:
             'clinical_snapshot_sha256': hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest(),
             'scoring': 'max(0.55 * prediction, established_function, condition_classification) + 0.15 * rarity',
             'scope': 'Heuristic prioritization; no calibrated probability, LR or automatic ACMG codes'}
+
+    @staticmethod
+    def validate_records(key, records):
+        from .clinvar import review_stars
+        for record in records:
+            if record['variant_id'] != key or record['assembly'] != 'GRCh38':
+                raise ValueError('ClinVar snapshot allele/assembly mismatch')
+            for assertion in record['assertions']:
+                if (assertion['source'] != 'ClinVar:' + assertion['accession']
+                        or assertion['review_stars'] != review_stars(assertion['review_status'])
+                        or not isinstance(assertion['compound_condition'], bool)):
+                    raise ValueError('Invalid ClinVar assertion provenance/review status')
+
+    def add_supplement(self, supplement):
+        """Records fetched for uploaded cases; never replaces alleles of the bundled snapshot."""
+        added = 0
+        for key, records in supplement.get('records', {}).items():
+            if key in self.records:
+                continue
+            self.validate_records(key, records)
+            self.records[key] = records
+            added += 1
+        if added:
+            self.metadata['clinical_variants'] = len(self.records)
+            self.metadata['uploaded_clinical_variants'] = self.metadata.get('uploaded_clinical_variants', 0) + added
+        return added
 
     @classmethod
     def load(cls, rules_path, snapshot_path):
@@ -254,10 +272,16 @@ class MolecularKnowledge:
         return 'PMID:' + source['pmid'] if source.get('pmid') else source_id
 
 
+UPLOAD_SUPPLEMENT = ROOT / 'data/cache/clinvar/uploaded-snapshot.json'
+
+
 @lru_cache(maxsize=1)
 def default_knowledge():
-    return MolecularKnowledge.load(ROOT / 'config/molecular_knowledge.json',
-                                   ROOT / 'resources/clinvar-snapshot.json')
+    knowledge = MolecularKnowledge.load(ROOT / 'config/molecular_knowledge.json',
+                                        ROOT / 'resources/clinvar-snapshot.json')
+    if UPLOAD_SUPPLEMENT.is_file():
+        knowledge.add_supplement(json.loads(UPLOAD_SUPPLEMENT.read_text(encoding='utf-8')))
+    return knowledge
 
 
 GENCC_RANK = ['Definitive', 'Strong', 'Moderate', 'Supportive', 'Limited',

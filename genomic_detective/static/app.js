@@ -2,13 +2,13 @@
 const $ = id => document.getElementById(id);
 const state = {cases: [], token: '', current: null, features: new Map(), report: null,
   previous: new Map(), selected: null, visible: 10, busy: false, searchVersion: 0};
-const statusTitles = {candidate: 'Исследовательский кандидат', uncertain: 'Конкурирующие гипотезы',
-  incomplete: 'Недостаточно данных', no_convincing_candidate: 'Убедительный кандидат не выделен'};
+const statusTitles = {candidate: 'Кандидат найден', uncertain: 'Ведущая гипотеза',
+  incomplete: 'Недостаточно данных', no_convincing_candidate: 'Убедительного кандидата нет'};
 const statusNotes = {
-  candidate: 'Ведущий вариант прошёл пороги исследовательского рейтинга. Проверьте доказательства, противоречия и недостающие данные.',
-  uncertain: 'Баллы ведущих вариантов близки. Рассмотрите несколько гипотез: оснований для однозначного выбора недостаточно.',
-  incomplete: 'Данных для завершённого вывода недостаточно. Рейтинг показан для просмотра; итоговый кандидат не назначен.',
-  no_convincing_candidate: 'Ни один вариант не прошёл заданные пороги. Это не доказывает отсутствие генетической причины.'};
+  candidate: 'Ведущий вариант прошёл все пороги: фенотип, молекулярные данные и совместимость с типом наследования.',
+  uncertain: 'Ведущий вариант выбран; ниже указано, какого подтверждения ему не хватает.',
+  incomplete: 'Для вывода не хватает данных — причина в предупреждениях ниже. Рейтинг показан для просмотра.',
+  no_convincing_candidate: 'Ни один вариант не прошёл пороги. В таблице — варианты, ближе всего подошедшие к ним.'};
 const missingTranslations = {
   'Reviewed condition-specific ClinVar classification unavailable; no positive support assigned': 'Нет классификации ClinVar с предоставленными критериями для выбранного заболевания; положительная поддержка не назначена.',
   'Exact-allele ClinVar record unavailable in the bundled snapshot; not assumed benign': 'Точный аллель не найден в доступном снимке ClinVar; это не означает доброкачественность.',
@@ -16,7 +16,12 @@ const missingTranslations = {
   'Generic null consequence does not establish the selected disease mechanism': 'Общая метка потери функции не подтверждает механизм выбранного заболевания.',
   'gnomAD frequency unavailable; not assumed zero': 'Частота gnomAD неизвестна; она не приравнивается к нулю.',
   'Condition-specific ClinVar assertion and review status not retrieved': 'Не получены утверждение ClinVar для конкретного заболевания и статус экспертной проверки.',
-  'Family segregation and phase unavailable': 'Нет данных о семейной сегрегации и фазе вариантов.'};
+  'Family segregation and phase unavailable': 'Нет данных о семейной сегрегации и фазе вариантов.',
+  'Allele absent from VEP gnomAD data; absence is weak rarity evidence only': 'Аллель не найден в gnomAD; это лишь слабый довод редкости.',
+  'ClinVar condition not specified; gene-level support only': 'В ClinVar заболевание не указано; поддержка только на уровне гена.',
+  'GenCC gene-disease validity for the selected disease ID not found': 'В GenCC нет оценки для этого идентификатора болезни.',
+  'Inheritance mode of this disease record unavailable': 'Для этой записи о болезни тип наследования не указан.',
+  'Inheritance mode or genotype unavailable': 'Тип наследования болезни или генотип неизвестен.'};
 const warningTranslations = {
   'ClinVar snapshot covers VEP clinical hits only; missing or unmatched condition evidence supplies no positive support, not a benign classification.': 'Снимок ClinVar охватывает варианты с клиническими аннотациями VEP. Отсутствие записи или совпадения по заболеванию не означает доброкачественность.',
   'Literature curation was developed after inspection of open cases; development improvement is not independent validation.': 'Литературные сведения собраны после знакомства с открытыми случаями. Улучшение на них не является независимой валидацией.',
@@ -27,7 +32,18 @@ const warningTranslations = {
   'VEP clinical annotations do not include independently fetched condition-specific ClinVar review status.': 'Аннотации VEP не содержат отдельно проверенного статуса ClinVar для конкретного заболевания.',
   'Absence of a convincing candidate does not prove absence of a genetic cause.': 'Отсутствие убедительного кандидата не доказывает отсутствие генетической причины.',
   'Phenotype was explicitly overridden for this run; not the original case profile.': 'Для этого расчёта использован изменённый HPO-профиль.',
-  'The organizer marked the phenotype profile as truncated.': 'Организаторы пометили фенотипический профиль как сокращённый.'};
+  'The organizer marked the phenotype profile as truncated.': 'Организаторы пометили фенотипический профиль как сокращённый.',
+  'User-uploaded case: variants absent from the local cache were annotated online (Ensembl VEP, ClinVar); input is not organizer data.': 'Загруженный случай: новые варианты аннотированы онлайн (Ensembl VEP, ClinVar).'};
+function translateWarning(text) {
+  if (warningTranslations[text]) return warningTranslations[text];
+  let match = text.match(/^Inheritance mode set by the user: (\w+);/);
+  if (match) return `Задан тип наследования ${match[1]}: гипотезы с другим типом не выдаются как ответ.`;
+  match = text.match(/^Uploaded VCF records skipped: (.*)$/);
+  if (match) return `Пропущены строки VCF: ${match[1].replace('not_snv', 'не SNV').replace('multiallelic', 'мультиаллельные')
+    .replace('reference_or_missing_genotype', 'без альтернативного генотипа').replace('filtered', 'не PASS')
+    .replace('unsupported_chromosome', 'неподдерживаемая хромосома').replace('duplicate', 'дубликаты')}.`;
+  return text;
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -97,14 +113,17 @@ function resetProfile() {
 function selectCase(id) {
   state.current = state.cases.find(c => c.id === id);
   state.report = null; state.previous.clear(); state.selected = null;
-  $('case-meta').replaceChildren(el('span', '', `${state.current.variant_count} вариантов`),
-    el('span', '', state.current.split === 'development' ? 'Открытый случай' : 'Скрытый случай'), el('span', '', 'GRCh38'));
+  const kind = {development: 'Открытый случай', hidden: 'Скрытый случай', uploaded: 'Загруженный VCF'}[state.current.split] || '';
+  $('case-meta').replaceChildren(el('span', '', `${state.current.variant_count} вариантов`), el('span', '', kind), el('span', '', 'GRCh38'));
+  const skipped = Object.values(state.current.skipped || {}).reduce((a, b) => a + b, 0);
+  if (skipped) $('case-meta').append(el('span', '', `пропущено строк: ${skipped}`));
+  $('inheritance').value = '';
   $('truncated').hidden = !state.current.truncated;
   resetProfile(); showError('');
 }
 function setBusy(busy) {
   state.busy = busy;
-  for (const id of ['case-select', 'reset', 'analyze', 'hpo-search']) $(id).disabled = busy;
+  for (const id of ['case-select', 'reset', 'analyze', 'hpo-search', 'inheritance', 'upload-submit']) $(id).disabled = busy;
   renderFeatures();
   $('loading').hidden = !busy;
   $('results-panel')?.setAttribute('aria-busy', String(busy));
@@ -194,15 +213,16 @@ function renderReport() {
   $('result-case').textContent = `${report.case_id.toUpperCase()} / РЕЗУЛЬТАТ АНАЛИЗА`;
   $('status-title').textContent = statusTitles[report.status] || report.status;
   $('result-profile').textContent = `${report.modified ? 'Изменённый' : 'Исходный'} HPO-профиль · ${new Date(report.created_at).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}`;
-  $('result-profile').textContent += ` · Правила ${report.config.version.match(/v\d+(?:\.\d+)*/)?.[0] || report.config.version}`;
+  if (state.inheritanceUsed) $('result-profile').textContent += ` · наследование ${state.inheritanceUsed}`;
   const reasons = report.uncertainty_reasons || [];
-  if (report.status === 'uncertain' && reasons.some(reason => reason !== 'close_scores'))
-    $('status-title').textContent = 'Требуется проверка доказательств';
+  if (report.status === 'uncertain' && reasons.length === 1 && reasons[0] === 'close_scores')
+    $('status-title').textContent = 'Конкурирующие гипотезы';
   const descriptions = {
-    close_scores: 'Баллы ведущих вариантов близки: рассмотрите несколько гипотез.',
-    clinical_conflict: 'Клинические интерпретации конфликтуют: требуется проверка.',
-    functional_clinical_conflict: 'Функциональные и клинические сведения требуют совместной проверки.',
-    limited_condition_evidence: 'Подтверждающая молекулярная поддержка выбранного заболевания ограничена. Первое место остаётся гипотезой для предметной проверки.'
+    close_scores: 'У нескольких вариантов почти равные баллы — это равноправные гипотезы.',
+    clinical_conflict: 'Клинические интерпретации в ClinVar расходятся.',
+    functional_clinical_conflict: 'Функциональные данные и клиническая классификация расходятся.',
+    limited_condition_evidence: 'Фенотип указывает на этот вариант, но записи ClinVar или функциональных данных для этой болезни нет.',
+    gene_level_clinical_only: 'Вариант патогенный по ClinVar, но запись не привязана к конкретной болезни.'
   };
   $('status-note').textContent = report.status === 'uncertain' && reasons.length
     ? reasons.map(reason => descriptions[reason] || reason).join(' ') : statusNotes[report.status] || '';
@@ -215,14 +235,12 @@ function renderReport() {
   $('priority-label').textContent = uncertain ? 'Близкие по баллу варианты' : hasHypothesis ? 'Первый в рейтинге' : 'Итоговый кандидат';
   $('leading-gene').textContent = uncertain ? report.ambiguity.variant_ids.length : hasHypothesis ? report.candidates[0]?.gene || '—' : '—';
   $('priority-note').textContent = uncertain ? `Разрыв с первым < ${gap}` : '';
-  $('ranking-legend').textContent = (uncertain
-    ? `Янтарная метка: разрыв с первым < ${gap} — эвристическая группа для совместного рассмотрения. ` : '')
-    + 'Серо-голубая строка и метка «Просмотр» обозначают открытую карточку, а не достоверность гипотезы.';
+  $('ranking-legend').textContent = uncertain ? `Янтарная метка: разрыв с первым меньше ${gap}.` : '';
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }
   $('guard-status').textContent = report.ranking_guard.status === 'passed' && report.presentation_guard.status === 'passed'
     ? 'Проверка целостности расчёта и ссылок на доказательства пройдена. Клиническую достоверность эта проверка не устанавливает.'
     : 'Проверка целостности не пройдена.';
-  $('warnings').replaceChildren(...report.warnings.map(w => el('li', '', warningTranslations[w] || w)));
+  $('warnings').replaceChildren(...report.warnings.map(w => el('li', '', translateWarning(w))));
   state.visible = 10; state.selected = report.candidates[0]?.variant_id;
   renderRanking(); if (report.candidates[0]) renderDetails(report.candidates[0]);
   $('details').hidden = !report.candidates.length;
@@ -232,7 +250,8 @@ function renderReport() {
 async function analyze() {
   if (state.busy) return;
   showError(''); setBusy(true);
-  const payload = {case_id: state.current.id, positive: [], excluded: []};
+  const payload = {case_id: state.current.id, positive: [], excluded: [], inheritance: $('inheritance').value || null};
+  state.inheritanceUsed = $('inheritance').value;
   for (const [id, f] of state.features) if (f.mode !== 'ignored') payload[f.mode].push(id);
   try {
     const report = await api('/api/analyze', payload);
@@ -263,6 +282,41 @@ $('hpo-search').addEventListener('input', () => {
   }, 220);
 });
 $('case-select').addEventListener('change', event => selectCase(event.target.value));
+$('inheritance').addEventListener('change', markEdited);
+$('upload-toggle').addEventListener('click', () => { $('upload-form').hidden = !$('upload-form').hidden; });
+function caseOption(c) {
+  const option = el('option', '', c.split === 'uploaded' ? `${c.name} (загружен)` : c.id.replace('case_', 'Случай '));
+  option.value = c.id; return option;
+}
+async function fileBase64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer()); let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+$('upload-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (state.busy) return;
+  const vcf = $('upload-vcf').files[0]; const phenotype = $('upload-phenotype').files[0];
+  if (!vcf) { showError('Выберите VCF-файл.'); return; }
+  if (vcf.size > 12 * 1024 * 1024) { showError('VCF больше 12 МБ: отфильтруйте его до панели генов или региона.'); return; }
+  showError(''); setBusy(true); $('upload-label').textContent = 'Аннотируем варианты…';
+  $('loading').querySelector('h2').textContent = 'Загружаем и аннотируем VCF';
+  try {
+    const result = await api('/api/upload', {vcf: await fileBase64(vcf), name: $('upload-name').value,
+      phenotype: phenotype ? await phenotype.text() : null});
+    state.cases.push(result.case); $('case-select').append(caseOption(result.case));
+    $('case-select').value = result.case.id; selectCase(result.case.id);
+    $('upload-form').reset(); $('upload-form').hidden = true;
+    const a = result.annotation;
+    $('profile-state').textContent = `Загружено: ${result.case.variant_count} вариантов (из кэша ${a.cached}, онлайн ${a.fetched}`
+      + `${a.failed ? `, не аннотировано ${a.failed}` : ''}${a.clinvar_lookup === 'failed' ? ', ClinVar недоступен' : ''}).`;
+  } catch (error) { showError(error.message); }
+  finally {
+    setBusy(false); $('upload-label').textContent = 'Загрузить и аннотировать';
+    $('loading').querySelector('h2').textContent = 'Сопоставляем доказательства';
+    if (state.report) $('result').hidden = false; else $('empty').hidden = false;
+  }
+});
 $('reset').addEventListener('click', resetProfile);
 $('analyze').addEventListener('click', analyze);
 $('more').addEventListener('click', () => { state.visible += 10; renderRanking(); });
@@ -273,9 +327,7 @@ $('more').addEventListener('click', () => { state.visible += 10; renderRanking()
     $('clinvar-credit').hidden = !initial.clinical_snapshot_date;
     if (initial.clinical_snapshot_date) $('clinvar-credit').textContent = `ClinVar · снимок ${initial.clinical_snapshot_date}`;
     if (!state.cases.length) throw new Error('В наборе нет случаев.');
-    $('case-select').replaceChildren(...state.cases.map(c => {
-      const option = el('option', '', c.id.replace('case_', 'Случай ')); option.value = c.id; return option;
-    }));
+    $('case-select').replaceChildren(...state.cases.map(caseOption));
     selectCase(state.cases[0].id); setBusy(false);
   } catch (error) { showError(`Не удалось открыть рабочую область: ${error.message}`); }
 })();

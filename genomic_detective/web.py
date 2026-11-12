@@ -1,6 +1,8 @@
 """Loopback-only, offline UI over the same ranking pipeline as the CLI."""
 from __future__ import annotations
 
+import base64
+import binascii
 import copy
 import json
 import secrets
@@ -15,6 +17,7 @@ from .annotations import AnnotationCache, VepProvider
 from .dataset import Dataset
 from .knowledge import Knowledge
 from .models import CONTEXT_MODES
+from .network import NetworkError
 from .pipeline import Pipeline, write_run
 from .ranking import CANDIDATE_GAP, RankingConfig
 
@@ -42,10 +45,12 @@ class Workspace:
         self.token = secrets.token_urlsafe(32)
         self.lock = threading.Lock()
         self.exports = {}
+        self.uploads = 0
 
     def case_info(self, case):
         return {'id': case.id, 'variant_count': len(case.variants), 'sex': case.sex,
-                'split': case.metadata.get('split'),
+                'split': case.metadata.get('split'), 'name': case.metadata.get('source_name'),
+                'skipped': case.metadata.get('skipped_records', {}),
                 'truncated': bool(case.metadata.get('phenotype_truncated')),
                 'positive': case.positive_hpo, 'excluded': case.excluded_hpo}
 
@@ -85,13 +90,65 @@ class Workspace:
             if any(t not in self.knowledge.labels and t not in labels for t in terms):
                 raise ValueError('Неизвестный HPO-термин. Выберите его через поиск.')
             setattr(case, attribute, {t: self.knowledge.labels.get(t, labels.get(t, t)) for t in terms})
+        inheritance = payload.get('inheritance') or None
+        if inheritance not in {None, 'AD', 'AR'}:
+            raise ValueError('Тип наследования: не задан, AD или AR.')
         case.__post_init__()
         original = self.cases[case.id]
         modified = (set(case.positive_hpo) != set(original.positive_hpo)
                     or set(case.excluded_hpo) != set(original.excluded_hpo))
         if modified:
             case.metadata['phenotype_override'] = 'interactive_ui'
-        return case, modified
+        if inheritance:
+            case.metadata['inheritance_hint'] = inheritance
+        return case, modified or bool(inheritance)
+
+    def upload(self, payload):
+        from .molecular import UPLOAD_SUPPLEMENT, default_knowledge
+        from .upload import annotate_missing, decode, fetch_clinvar, make_case, parse_phenopacket, parse_vcf, save_supplement
+        if not isinstance(payload, dict) or not isinstance(payload.get('vcf'), str):
+            raise ValueError('Выберите VCF-файл.')
+        try:
+            text = decode(base64.b64decode(payload['vcf'], validate=True))
+        except (binascii.Error, OSError, EOFError, UnicodeError) as error:
+            raise ValueError('VCF не читается: ожидается текстовый .vcf или .vcf.gz в UTF-8.') from error
+        variants, skipped = parse_vcf(text)
+        positive, excluded, sex, packet_id = {}, {}, 'UNKNOWN_SEX', None
+        if payload.get('phenotype'):
+            positive, excluded, sex, packet_id = parse_phenopacket(str(payload['phenotype']), self.knowledge.labels)
+        name = str(payload.get('name') or packet_id or 'Загруженный случай').strip()[:80]
+        if not self.lock.acquire(blocking=False):
+            raise BusyError('Идёт другой расчёт. Повторите загрузку через несколько секунд.')
+        cache = None
+        try:
+            cache = AnnotationCache(self.cache_path)
+            provider = VepProvider(cache)
+            summary = annotate_missing(provider, variants)
+            annotations, _ = provider.annotate(variants, offline=True)
+            clinical = 0
+            if self.config.molecular_mode in CONTEXT_MODES:
+                knowledge = default_knowledge()
+                try:
+                    records = fetch_clinvar(annotations, set(knowledge.records))
+                except (NetworkError, KeyError, ValueError):
+                    records = None
+                if records:
+                    save_supplement(UPLOAD_SUPPLEMENT, records)
+                    grouped = {}
+                    for record in records:
+                        grouped.setdefault(record['variant_id'], []).append(record)
+                    clinical = knowledge.add_supplement({'records': grouped})
+                summary['clinvar_lookup'] = 'failed' if records is None else 'ok'
+            summary['clinvar_variants'] = clinical
+        finally:
+            if cache:
+                cache.close()
+            self.lock.release()
+        self.uploads += 1
+        case = make_case(f'upload_{self.uploads:02d}', name, variants, positive, excluded, sex, skipped)
+        case.metadata['annotation_summary'] = summary
+        self.cases[case.id] = case
+        return {'case': self.case_info(case), 'annotation': summary}
 
     def analyze(self, payload):
         case, modified = self.profile(payload)
@@ -137,6 +194,7 @@ class Workspace:
 
 
 DEFAULT_PORT = 8765
+UPLOAD_LIMIT = 16 * 1024 * 1024  # base64 of a ~12 MB VCF
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -215,14 +273,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.trusted(mutation=True):
             return self.send(403, {'error': 'Недопустимый источник запроса. Обновите страницу.'})
-        if urlsplit(self.path).path != '/api/analyze':
+        route = urlsplit(self.path).path
+        if route not in {'/api/analyze', '/api/upload'}:
             return self.send(404, {'error': 'Страница не найдена.'})
+        limit = UPLOAD_LIMIT if route == '/api/upload' else 65536
         try:
             size = int(self.headers.get('Content-Length', '0'))
-            if size <= 0 or size > 65536 or self.headers.get('Content-Type') != 'application/json':
-                return self.send(400, {'error': 'Ожидается JSON размером до 64 КБ.'})
+            if size <= 0 or size > limit or self.headers.get('Content-Type') != 'application/json':
+                return self.send(400, {'error': f'Ожидается JSON размером до {limit // 1024} КБ.'})
             payload = json.loads(self.rfile.read(size).decode('utf-8'))
-            return self.send(200, self.server.workspace.analyze(payload))
+            workspace = self.server.workspace
+            return self.send(200, workspace.upload(payload) if route == '/api/upload' else workspace.analyze(payload))
         except BusyError as error:
             self.send(409, {'error': str(error)})
         except (ValueError, TypeError, UnicodeError) as error:
@@ -274,7 +335,7 @@ def serve(args):
         print('Loading local HPO reference data. Please wait...', flush=True)
         server.workspace = Workspace(args.dataset, args.cache, args.knowledge, args.config, args.output)
         print(f'Local UI: {server.origin}', flush=True)
-        print('Offline annotations; no external API calls. Stop: Ctrl+C.', flush=True)
+        print('Bundled cases run offline; only an uploaded VCF triggers Ensembl VEP/ClinVar requests. Stop: Ctrl+C.', flush=True)
         if args.open:
             webbrowser.open(server.origin)
         try:
