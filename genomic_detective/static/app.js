@@ -454,7 +454,10 @@ function renderReport() {
   if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
   if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `близкие гипотезы: разрыв с первым меньше ${gap}` : 'ведущая гипотеза, подтверждение неполное']);
   $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
-  $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'));
+  const inheritanceLegend = el('span', 'legend-item', 'Наследование:');
+  for (const [mark, text] of [['✓', 'совместимо'], ['≈', 'частично'], ['✗', 'нет'], ['?', 'не указано']])
+    inheritanceLegend.append(el('span', 'inh-mark legend-mark', mark), document.createTextNode(text));
+  $('ranking-legend').append(inheritanceLegend);
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }
   $('guard-status').textContent = report.ranking_guard.status === 'passed' && report.presentation_guard.status === 'passed'
     ? 'Проверка целостности расчёта и ссылок на доказательства пройдена. Клиническую достоверность эта проверка не устанавливает.'

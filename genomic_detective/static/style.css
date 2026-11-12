@@ -99,4 +99,4 @@
 .cite a{color:var(--green);font-weight:600;text-decoration:none;margin-left:1px}
 .cite a:hover{color:#125747;text-decoration:underline}
 th .cite a{color:var(--green)}
-
+.legend-mark{color:#125747;margin-left:6px}
