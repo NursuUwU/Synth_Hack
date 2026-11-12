@@ -63,10 +63,10 @@
 .source-links a,.source-links span{border:1px solid var(--line);border-radius:5px;padding:3px 7px;background:#fff}
 .source-links .source-title{border:0;background:none;padding:0;color:var(--muted)}
 .detail-section{scroll-margin-top:16px}
-/* Arrival mark: two soft green pulses on the linked section, fading out. */
-@keyframes marked{0%{background-color:#d3ecdd}25%{background-color:#f1f8f3}50%{background-color:#d3ecdd}100%{background-color:transparent}}
-.detail-section.marked{animation:marked 2s ease-in-out;border-radius:8px}
-.evidence-list li.ev-match.marked{animation:marked 2s ease-in-out;border-radius:4px}
+/* Arrival mark: one soft green wave that fades in and out. */
+@keyframes marked{0%{background-color:rgba(23,110,92,0)}30%{background-color:rgba(23,110,92,.12)}100%{background-color:rgba(23,110,92,0)}}
+.detail-section.marked{animation:marked 2.4s ease-in-out;border-radius:8px}
+.evidence-list li.ev-match.marked{animation:marked 2.4s ease-in-out;border-radius:4px}
 /* Green accents: the answer row and key numbers read as the primary signal. */
 .ranking-card tbody tr.tone-best .gene-button,.ranking-card tbody tr.tone-best .total-score{color:var(--green)}
 .ranking-card tbody tr.tone-best .rank-number{color:var(--green);font-weight:700}

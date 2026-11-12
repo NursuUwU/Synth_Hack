@@ -256,10 +256,11 @@ function openCandidate(candidate, target) {
     return;
   }
   const section = document.getElementById(target) || $('details');
-  // Mark the destination once the page has arrived: the section pulses twice, and for
-  // symptoms the matched features themselves are highlighted.
+  // Mark the destination once the page has arrived: for symptoms only the matched features
+  // themselves, otherwise the linked section.
   glideTo(section, 16, () => {
-    const marks = [section, ...section.querySelectorAll('li.ev-match')];
+    const features = [...section.querySelectorAll('li.ev-match')];
+    const marks = target === 'sec-phenotype' && features.length ? features : [section];
     for (const node of marks) { node.classList.remove('marked'); void node.offsetWidth; node.classList.add('marked'); }
   });
 }
