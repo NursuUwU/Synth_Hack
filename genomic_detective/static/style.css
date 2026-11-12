@@ -78,4 +78,10 @@
 .metric strong{color:var(--green)}
 .why{border-left:4px solid var(--green)}
 .why-list li.con:before{color:#7a8f86}
+.place-cell{white-space:nowrap;min-width:64px}
+.place-cell .rank-number{display:block;font-size:13px;font-weight:650;color:var(--ink)}
+.place-score{display:block;font-size:10px;font-weight:650;color:var(--green);margin-top:2px}
+.place-cell .score-track{width:46px;height:4px;margin-top:4px}
+.place-cell .score-track i{background:var(--green)}
+.ranking-card tbody tr.tone-best .place-cell .rank-number{color:var(--green)}
 

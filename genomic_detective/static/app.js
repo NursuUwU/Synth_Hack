@@ -131,14 +131,6 @@ function setBusy(busy) {
   if (busy) { $('result').hidden = true; $('empty').hidden = true; $('run-label').textContent = 'Идёт расчёт…'; }
 }
 function score(value) { return value === null || value === undefined ? '—' : value.toFixed(3); }
-function scoreCell(value, total = false) {
-  const cell = el('td', total ? 'total-score' : '', score(value));
-  if (!total && value !== null && value !== undefined) {
-    const track = el('span', 'score-track'); const bar = el('i');
-    bar.style.width = `${Math.max(0, Math.min(1, value)) * 100}%`; track.append(bar); cell.append(track);
-  }
-  return cell;
-}
 function rowTone(candidate) {
   // Green: the answer passed every threshold. Yellow: contested leaders (uncertain status
   // or near-equal scores). Everything else stays neutral.
@@ -221,12 +213,20 @@ function openCandidate(candidate, target) {
   section.scrollIntoView({behavior: 'smooth', block: 'start'});
   section.classList.remove('flash'); void section.offsetWidth; section.classList.add('flash');
 }
+function placeCell(candidate) {
+  // Place, total score and its bar in one column; the score is an internal sum, not a probability.
+  const cell = el('td', 'place-cell'); cell.title = 'Внутренний балл 0–1: сумма фенотипа, молекулярных данных и наследования с весами';
+  cell.append(el('span', 'rank-number', String(candidate.rank).padStart(2, '0')), el('span', 'place-score', score(candidate.score)));
+  const track = el('span', 'score-track'); const bar = el('i');
+  bar.style.width = `${Math.max(0, Math.min(1, candidate.score)) * 100}%`; track.append(bar); cell.append(track);
+  return cell;
+}
 function renderRanking() {
   $('ranking').replaceChildren();
   for (const candidate of state.report.candidates.slice(0, state.visible)) {
     const selected = candidate.variant_id === state.selected;
     const row = el('tr', `${rowTone(candidate)} ${selected ? 'selected' : ''}`.trim());
-    row.append(el('td', 'rank-number', String(candidate.rank).padStart(2, '0')));
+    row.append(placeCell(candidate));
     const name = el('td'); const button = el('button', 'gene-button', candidate.gene || 'Ген не определён');
     button.setAttribute('aria-label', `Доказательства: ${candidate.gene || candidate.variant_id}, место ${candidate.rank}`);
     button.setAttribute('aria-pressed', String(selected));
@@ -246,7 +246,7 @@ function renderRanking() {
       sym.names.join('\n') || 'Совпадений нет'));
     const inh = inheritance(candidate); const inhCell = el('td', `small-cell ${inh.cls}`);
     inhCell.append(el('span', 'inh-mark', inh.mark), document.createTextNode(` ${inh.text}`)); inhCell.title = inh.title;
-    row.append(inhCell, scoreCell(candidate.score, true));
+    row.append(inhCell);
     row.addEventListener('click', () => openCandidate(candidate));
     $('ranking').append(row);
   }
