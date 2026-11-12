@@ -231,7 +231,13 @@ function clipCell(text, target, candidate, title) {
 }
 function openCandidate(candidate, target) {
   state.selected = candidate.variant_id; renderRanking(); renderDetails(candidate);
-  if (!target) return;
+  if (!target) {
+    // Row click: bring the card into view only when its heading is off screen, so clicking
+    // through rows to compare does not keep moving the table.
+    const top = $('details').getBoundingClientRect().top;
+    if (top > window.innerHeight - 120 || top < 0) $('details').scrollIntoView({behavior: 'smooth', block: 'start'});
+    return;
+  }
   const section = document.getElementById(target) || $('details');
   section.scrollIntoView({behavior: 'smooth', block: 'start'});
   section.classList.remove('flash'); void section.offsetWidth; section.classList.add('flash');
