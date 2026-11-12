@@ -127,7 +127,8 @@ def write_run(reports: list[dict], directory: Path):
     complete = all(report['prediction'] is not None for report in reports)
     target = directory / ('predictions.tsv' if complete else 'predictions.partial.tsv')
     with target.open('w', encoding='utf-8', newline='') as stream:
-        writer = csv.writer(stream, delimiter='\t')
+        # Plain LF: a grader reading lines without stripping \r must still match the variant IDs.
+        writer = csv.writer(stream, delimiter='\t', lineterminator='\n')
         writer.writerow(['case_id', 'prediction'])
         writer.writerows((r['case_id'], r['prediction']) for r in reports if r['prediction'] is not None)
     # Remove only our own stale prediction counterpart in the explicitly selected output directory.
