@@ -23,6 +23,8 @@ from .ranking import CANDIDATE_GAP, RankingConfig
 
 
 ASSETS = Path(__file__).parent / 'static'
+# Bumped whenever routes change: static files are read per request, Python routes only at start.
+API_VERSION = 2
 
 
 class BusyError(ValueError):
@@ -59,7 +61,7 @@ class Workspace:
         if self.config.molecular_mode in CONTEXT_MODES:
             from .molecular import default_knowledge
             clinical_date = default_knowledge().metadata['clinical_snapshot_date'][:10]
-        return {'token': self.token, 'cases': [self.case_info(c) for c in self.cases.values()],
+        return {'token': self.token, 'api_version': API_VERSION, 'cases': [self.case_info(c) for c in self.cases.values()],
                 'clinical_snapshot_date': clinical_date,
                 'hpo_version': self.knowledge.manifest.get('ontology_version', 'version unavailable'),
                 'hpo_terms': len(self.knowledge.labels), 'diseases': len(self.knowledge.diseases),

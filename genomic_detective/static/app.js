@@ -1,5 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
+const API_VERSION = 2;  // must match web.API_VERSION
 const state = {cases: [], token: '', current: null, features: new Map(), report: null,
   previous: new Map(), selected: null, visible: 10, busy: false, searchVersion: 0};
 const statusTitles = {candidate: 'Кандидат найден', uncertain: 'Ведущая гипотеза',
@@ -138,25 +139,44 @@ function scoreCell(value, total = false) {
   }
   return cell;
 }
+function rowTone(candidate) {
+  // Green: the answer passed every threshold. Yellow: contested leaders (uncertain status
+  // or near-equal scores). Everything else stays neutral.
+  const report = state.report; const near = new Set(report.ambiguity.variant_ids);
+  if (report.status === 'candidate' && candidate.rank === 1) return 'tone-best';
+  if (report.status === 'uncertain' && (candidate.rank === 1 || near.has(candidate.variant_id))) return 'tone-contested';
+  return '';
+}
+function inheritanceCell(expert) {
+  // Compatibility check, not a graded score: show its meaning instead of 1 / — .
+  const value = expert.score;
+  const [mark, title, cls] = value === null || value === undefined
+    ? ['?', 'Тип наследования болезни не указан в HPO — не проверялось', 'inh-unknown']
+    : expert.moi_compatible === false || value === 0 ? ['✗', 'Не совместимо с типом наследования болезни', 'inh-no']
+    : value >= 1 ? ['✓', 'Генотип совместим с типом наследования болезни', 'inh-yes']
+    : ['≈', `Совместимо частично (${score(value)}): например, вторая копия аллеля или фаза не установлены`, 'inh-partial'];
+  const cell = el('td', `inh-cell ${cls}`, mark); cell.title = title; return cell;
+}
 function renderRanking() {
   $('ranking').replaceChildren();
-  const near = new Set(state.report.ambiguity.variant_ids);
+  const showDelta = state.previous.size > 0;
+  $('delta-head').hidden = !showDelta;
   for (const candidate of state.report.candidates.slice(0, state.visible)) {
     const selected = candidate.variant_id === state.selected;
-    const row = el('tr', `${selected ? 'selected' : ''} ${near.has(candidate.variant_id) ? 'row-near' : ''}`.trim());
+    const row = el('tr', `${rowTone(candidate)} ${selected ? 'selected' : ''}`.trim());
     row.append(el('td', 'rank-number', String(candidate.rank).padStart(2, '0')));
     const name = el('td'); const button = el('button', 'gene-button', candidate.gene || 'Ген не определён');
-    button.setAttribute('aria-label', `Доказательства: ${candidate.gene || candidate.variant_id}, позиция ${candidate.rank}`);
+    button.setAttribute('aria-label', `Доказательства: ${candidate.gene || candidate.variant_id}, место ${candidate.rank}`);
     button.setAttribute('aria-pressed', String(selected));
     name.append(button, el('span', 'variant-id', candidate.variant_id)); row.append(name, scoreCell(candidate.score, true));
-    const tags = el('div', 'row-tags');
-    if (near.has(candidate.variant_id)) tags.append(el('span', 'near-badge', 'Близкий балл'));
-    if (selected) tags.append(el('span', 'view-badge', 'Просмотр'));
-    if (tags.children.length) name.append(tags);
-    for (const expert of ['phenotype', 'molecular', 'inheritance']) row.append(scoreCell(candidate.experts[expert].score));
-    const old = state.previous.get(candidate.variant_id); const delta = old === undefined ? null : old - candidate.rank;
-    row.append(el('td', delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : '',
-      delta === null ? '—' : delta === 0 ? '·' : `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}`));
+    for (const expert of ['phenotype', 'molecular']) row.append(scoreCell(candidate.experts[expert].score));
+    row.append(inheritanceCell(candidate.experts.inheritance));
+    if (showDelta) {
+      const old = state.previous.get(candidate.variant_id); const delta = old === undefined ? null : old - candidate.rank;
+      const cell = el('td', delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : '',
+        delta === null ? 'новый' : delta === 0 ? '·' : `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}`);
+      cell.title = 'Изменение места по сравнению с предыдущим расчётом этого случая'; row.append(cell);
+    }
     row.addEventListener('click', () => { state.selected = candidate.variant_id; renderRanking(); renderDetails(candidate); });
     $('ranking').append(row);
   }
@@ -187,7 +207,8 @@ function renderDetails(candidate) {
   const container = $('details'); container.replaceChildren();
   const heading = el('div', 'candidate-heading'); const name = el('div');
   name.append(el('h3', '', candidate.gene || 'Ген не определён'), el('p', 'helper', candidate.variant_id));
-  heading.append(name, el('span', 'rank-badge', `Просмотр · позиция ${candidate.rank}`));
+  heading.append(name, el('span', 'rank-badge', `${candidate.rank}-е место`));
+  container.className = `details-card card ${rowTone(candidate)}`;
   const disease = el('p', 'disease-name', candidate.disease_name || 'Заболевание не определено');
   disease.append(el('small', '', candidate.disease_id || ''));
   const facts = el('div', 'detail-facts');
@@ -235,7 +256,12 @@ function renderReport() {
   $('priority-label').textContent = uncertain ? 'Близкие по баллу варианты' : hasHypothesis ? 'Первый в рейтинге' : 'Итоговый кандидат';
   $('leading-gene').textContent = uncertain ? report.ambiguity.variant_ids.length : hasHypothesis ? report.candidates[0]?.gene || '—' : '—';
   $('priority-note').textContent = uncertain ? `Разрыв с первым < ${gap}` : '';
-  $('ranking-legend').textContent = uncertain ? `Янтарная метка: разрыв с первым меньше ${gap}.` : '';
+  const legend = [];
+  if (report.status === 'candidate') legend.push(['tone-best', 'ответ: прошёл все пороги']);
+  if (report.status === 'uncertain') legend.push(['tone-contested', uncertain ? `спорные: разрыв с первым меньше ${gap}` : 'ведущая гипотеза с неполным подтверждением']);
+  legend.push(['tone-selected', 'открыт в карточке ниже']);
+  $('ranking-legend').replaceChildren(...legend.map(([cls, text]) => { const item = el('span', 'legend-item'); item.append(el('i', cls), text); return item; }));
+  $('ranking-legend').append(el('span', 'legend-item', 'Наследование: ✓ совместимо · ≈ частично · ✗ нет · ? не указано'));
   for (const kind of ['html', 'tsv', 'json']) { $(`download-${kind}`).href = report.downloads[kind]; $(`download-${kind}`).setAttribute('download', ''); }
   $('guard-status').textContent = report.ranking_guard.status === 'passed' && report.presentation_guard.status === 'passed'
     ? 'Проверка целостности расчёта и ссылок на доказательства пройдена. Клиническую достоверность эта проверка не устанавливает.'
@@ -323,6 +349,9 @@ $('more').addEventListener('click', () => { state.visible += 10; renderRanking()
 (async () => {
   try {
     const initial = await api('/api/init'); state.cases = initial.cases; state.token = initial.token;
+    if (initial.api_version !== API_VERSION)
+      showError('Запущен сервер старой версии: страница обновилась, а программа — нет. Закройте окно Start.cmd '
+        + '(и лишние python.exe в Диспетчере задач) и запустите Start.cmd снова.');
     $('hpo-credit').textContent = `Human Phenotype Ontology · ${initial.hpo_version || 'версия не передана'}`;
     $('clinvar-credit').hidden = !initial.clinical_snapshot_date;
     if (initial.clinical_snapshot_date) $('clinvar-credit').textContent = `ClinVar · снимок ${initial.clinical_snapshot_date}`;
