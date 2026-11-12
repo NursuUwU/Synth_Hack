@@ -24,13 +24,13 @@
    using precomputed colours (no color-mix, so older browsers render it too). */
 .ranking-card tbody tr,.ranking-card tbody tr.row-near{background:#fff}
 .ranking-card tbody tr:hover,.ranking-card tbody tr.row-near:hover{background:#f3f7f5}
-.ranking-card tbody tr.tone-best{background:#cdebd8}
-.ranking-card tbody tr.tone-best:hover{background:#c0e4cd}
-.ranking-card tbody tr.tone-contested{background:#eff6d8}
-.ranking-card tbody tr.tone-contested:hover{background:#e6f0c8}
+.ranking-card tbody tr.tone-best{background:#eaf6ef}
+.ranking-card tbody tr.tone-best:hover{background:#ddf0e4}
+.ranking-card tbody tr.tone-contested{background:#f6f9e8}
+.ranking-card tbody tr.tone-contested:hover{background:#eef4d6}
 .ranking-card tbody tr.selected,.ranking-card tbody tr.selected:hover{background:#e2ecf6}
-.ranking-card tbody tr.tone-best.selected,.ranking-card tbody tr.tone-best.selected:hover{background:#c4e2dc}
-.ranking-card tbody tr.tone-contested.selected,.ranking-card tbody tr.tone-contested.selected:hover{background:#dbe8e2}
+.ranking-card tbody tr.tone-best.selected,.ranking-card tbody tr.tone-best.selected:hover{background:#dcece9}
+.ranking-card tbody tr.tone-contested.selected,.ranking-card tbody tr.tone-contested.selected:hover{background:#e6eee6}
 .ranking-card tbody tr.selected td:first-child{box-shadow:inset 4px 0 #2f6f9f}
 .rank-badge{color:var(--muted)}
 .inh-cell{font-weight:700;text-align:center}
@@ -66,8 +66,6 @@
 @keyframes flash{from{box-shadow:0 0 0 3px #2f6f9f66}to{box-shadow:0 0 0 3px #2f6f9f00}}
 .flash{animation:flash 1.6s ease-out;border-radius:8px}
 /* Green accents: the answer row and key numbers read as the primary signal. */
-.ranking-card tbody tr.tone-best td:first-child{box-shadow:inset 4px 0 var(--green)}
-.ranking-card tbody tr.tone-best.selected td:first-child{box-shadow:inset 4px 0 #2f6f9f,inset 8px 0 var(--green)}
 .ranking-card tbody tr.tone-best .gene-button,.ranking-card tbody tr.tone-best .total-score{color:var(--green)}
 .ranking-card tbody tr.tone-best .rank-number{color:var(--green);font-weight:700}
 .ranking-card tbody tr.tone-contested .gene-button{color:#4a6b23}
@@ -100,3 +98,19 @@
 .cite a:hover{color:#125747;text-decoration:underline}
 th .cite a{color:var(--green)}
 .legend-mark{color:#125747;margin-left:6px}
+/* Table header: dark green band, white labels and citation marks. */
+.ranking-card thead{background:#14302b;color:#f4f8f5}
+.ranking-card thead th{color:#f4f8f5;font-weight:600}
+.ranking-card thead .cite a,.ranking-card thead .cite a:hover{color:#c9e58a}
+/* Confidence marks: a rank badge and a short tag instead of heavy row fills. */
+.ranking-card tbody tr.tone-best .place-cell .rank-number,.ranking-card tbody tr.tone-contested .place-cell .rank-number{
+  display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:12px}
+.ranking-card tbody tr.tone-best .place-cell .rank-number{background:var(--green);color:#fff}
+.ranking-card tbody tr.tone-contested .place-cell .rank-number{background:#fff;color:#4a6b23;box-shadow:inset 0 0 0 2px #a8c45e}
+.tone-tag{display:inline-block;margin-top:5px;font-size:9px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  padding:2px 7px;border-radius:10px}
+.tone-tag.tone-best{background:var(--green);color:#fff}
+.tone-tag.tone-contested{background:#eef4d6;color:#4a6b23;border:1px solid #c9db94}
+.legend-item i.tone-best{background:var(--green);border-color:var(--green);border-radius:50%}
+.legend-item i.tone-contested{background:#fff;border:2px solid #a8c45e;border-radius:50%}
+

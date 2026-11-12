@@ -257,6 +257,8 @@ function renderRanking() {
     // The table doubles as the gene ranking: repeated genes are marked instead of a separate list.
     const order = state.report.candidates.filter(c => c.gene && c.gene === candidate.gene && c.rank <= candidate.rank).length;
     if (order > 1) name.append(el('span', 'gene-repeat', `${order}-й вариант гена`));
+    const tone = rowTone(candidate);
+    if (tone) name.append(el('span', `tone-tag ${tone}`, tone === 'tone-best' ? 'ответ' : 'гипотеза'));
     row.append(name);
     const hom = ['1/1', '1|1'].includes(candidate.genotype);
     const genotype = el('td', 'small-cell', hom ? 'гомо' : 'гетеро'); genotype.title = `${candidate.genotype}: ${hom ? 'вариант в обеих копиях' : 'вариант в одной копии'}`;
