@@ -1,0 +1,8 @@
+{
+  "description": "Demonstration of input editing only, not a new clinical case or expected answer.",
+  "phenotypicFeatures": [
+    {"type": {"id": "HP:0001166", "label": "Arachnodactyly"}},
+    {"type": {"id": "HP:0001634", "label": "Mitral valve prolapse"}},
+    {"type": {"id": "HP:0009064", "label": "Generalized lipodystrophy"}, "excluded": true}
+  ]
+}

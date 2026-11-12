@@ -1,0 +1,15 @@
+{
+  "downloaded_at": "2026-11-12T08:21:56.141426+00:00",
+  "documentation": "https://developers.sber.ru/docs/ru/gigachat/certificates",
+  "sources": [
+    {
+      "url": "https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt",
+      "sha256": "936a43fea6e8e525bcc0f81acd9c3d21b4fc4b9b68acea7906d698005afc6504"
+    },
+    {
+      "url": "https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt",
+      "sha256": "f0ae589f36774f29ef3648f7984b08d42fcce6f1ffeeb6236d773daeb2744ea6"
+    }
+  ],
+  "bundle_sha256": "c70898a66980a225e3bc43b8837a058a089d3c7960c7ffd5203365618f3c08a9"
+}

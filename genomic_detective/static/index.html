@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Локальный исследовательский инструмент для приоритизации геномных вариантов">
+  <title>Геномный детектив — анализ случая</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <a href="/" class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span>Геномный детектив<small>Исследовательская рабочая область</small></span></a>
+  <span class="local-badge"><i></i> Локально · офлайн</span>
+</header>
+<main>
+  <div class="page-heading"><div><p class="eyebrow">КЕЙС 03 / СИНТЕЗ</p><h1>От симптомов к кандидатам</h1><p class="subtitle">Сопоставьте фенотип и геномные варианты. Изучите основания рейтинга.</p></div><span class="study-label">Учебные данные · GRCh38</span></div>
+  <div id="error" role="alert" class="error" hidden></div>
+  <div class="workspace">
+    <aside class="profile-panel card">
+      <div class="panel-heading"><span class="step">01</span><h2>Профиль случая</h2></div>
+      <label class="field-label" for="case-select">Случай</label>
+      <select id="case-select" disabled><option>Загрузка…</option></select>
+      <div id="case-meta" class="case-meta"></div>
+      <p id="truncated" class="notice" hidden>Профиль симптомов сокращён организаторами. Отсутствие термина не означает отсутствие симптома.</p>
+      <div class="section-line"><h3>Фенотип <span id="feature-count" class="count"></span></h3><button id="reset" class="text-button" disabled>Восстановить</button></div>
+      <p class="helper">Для каждого признака укажите: есть, явно отсутствует или не учитывать.</p>
+      <div id="features" class="features" aria-label="Признаки HPO"></div>
+      <div class="search-wrap">
+        <label class="field-label" for="hpo-search">Добавить признак HPO</label>
+        <input id="hpo-search" type="search" placeholder="Например, arachnodactyly или HP:…" autocomplete="off" maxlength="200" disabled>
+        <p class="helper search-hint">Поиск по HPO ID или английскому названию</p>
+        <div id="search-results" class="search-results" aria-live="polite" hidden></div>
+      </div>
+      <div class="profile-footer"><p id="profile-state" class="helper">Исходный профиль</p><button id="analyze" class="primary-button" disabled><span id="run-label">Рассчитать рейтинг</span><span aria-hidden="true">↗</span></button><p class="privacy-note">Расчёт на этом компьютере. Данные не отправляются во внешние API.</p></div>
+    </aside>
+    <section id="results-panel" class="results-panel" aria-label="Результаты анализа">
+      <div id="empty" class="empty-state card"><div class="empty-symbol" aria-hidden="true">⌁</div><p class="eyebrow">ОБЪЯСНИМЫЙ РЕЙТИНГ</p><h2>Несколько взглядов.<br>Одна проверяемая гипотеза.</h2><p>Выберите случай и запустите анализ. Каждый кандидат получит оценку по фенотипу, молекулярным данным и наследованию.</p><div class="expert-pills"><span>Фенотип</span><span>Молекулярные данные</span><span>Наследование</span></div><div class="empty-bottom">HPO + Ensembl VEP <span>→</span> Рейтинг <span>→</span> Доказательства</div></div>
+      <div id="loading" class="loading-state card" role="status" hidden><div class="spinner"></div><h2>Сопоставляем доказательства</h2><p>Проверяем аннотации и пересчитываем все варианты по текущему HPO-профилю.</p><small>Обычно это занимает несколько секунд.</small></div>
+      <div id="result" hidden>
+        <div class="result-header"><div><p class="eyebrow" id="result-case"></p><h2 id="status-title"></h2><p id="result-profile" class="helper"></p></div><div class="download-links" aria-label="Скачать отчёт"><a id="download-html">Отчёт ↗</a><a id="download-tsv">TSV ↓</a><a id="download-json">JSON ↓</a></div></div>
+        <div id="status-note" class="status-note"></div>
+        <div class="metrics"><div class="metric card"><span>Варианты в анализе</span><strong id="variant-count"></strong></div><div class="metric card"><span>Покрытие аннотациями</span><strong id="coverage"></strong></div><div class="metric card"><span id="priority-label">Первый в рейтинге</span><strong id="leading-gene"></strong><small id="priority-note"></small></div></div>
+        <div class="ranking-card card"><div class="section-line ranking-heading"><h3>Рейтинг кандидатов</h3><span id="shown-count" class="helper"></span></div><p class="helper score-note">Внутренние баллы 0–1, не вероятность диагноза. Нажмите на строку для просмотра доказательств.</p><p id="ranking-legend" class="helper score-note"></p><div class="table-scroll"><table><thead><tr><th scope="col">№</th><th scope="col">Ген / вариант</th><th scope="col">Итог</th><th scope="col">Фенотип</th><th scope="col">Молекул.</th><th scope="col">Наслед.</th><th scope="col" title="Изменение позиции относительно предыдущего расчёта этого случая">Δ</th></tr></thead><tbody id="ranking"></tbody></table></div><button id="more" class="more-button" hidden>Показать ещё</button></div>
+        <section id="details" class="details-card card" aria-label="Доказательства по кандидату"></section>
+        <details class="limits card"><summary>Ограничения и проверка результата</summary><p>Учебный синтетический набор. Результат требует экспертной проверки и не является диагнозом.</p><p id="guard-status"></p><ul id="warnings"></ul></details>
+      </div>
+    </section>
+  </div>
+  <footer class="page-footer"><span>Геномный детектив / исследовательский прототип</span><span>Баллы помогают приоритизировать проверку, а не устанавливают диагноз.</span></footer>
+</main>
+</body>
+</html>

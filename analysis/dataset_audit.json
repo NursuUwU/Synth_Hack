@@ -1,0 +1,896 @@
+{
+  "archive": "Project_3_genomic_detecive_for_students.zip",
+  "archive_sha256": "8fff8c927ef3e0d25fabb5f5d79f40f1d162bc67840cc881f3c1da04bb62eac0",
+  "method": "Structural audit only; no external annotation or biological validation.",
+  "case_count": 10,
+  "total_variant_rows": 4096,
+  "unique_variant_keys_across_cases": 3690,
+  "total_positive_hpo": 179,
+  "total_excluded_hpo": 35,
+  "vcf_unavailable_fields": {
+    "QUAL": 4096,
+    "FILTER": 4096,
+    "INFO": 4096
+  },
+  "development_label_genotypes": {
+    "case_01": [
+      "0/1"
+    ],
+    "case_02": [
+      "0/1"
+    ],
+    "case_03": [
+      "0/1"
+    ],
+    "case_04": [
+      "0/1"
+    ],
+    "case_05": [
+      "0/1"
+    ],
+    "case_06": [
+      "0/1"
+    ]
+  },
+  "development_label_presence_in_same_chromosome_cases": {
+    "case_01": {
+      "case_01": true
+    },
+    "case_02": {
+      "case_02": true,
+      "case_03": false
+    },
+    "case_03": {
+      "case_02": false,
+      "case_03": true
+    },
+    "case_04": {
+      "case_04": true
+    },
+    "case_05": {
+      "case_05": true
+    },
+    "case_06": {
+      "case_06": true
+    }
+  },
+  "annotation_missing": {
+    "gene": 4096,
+    "consequence": 4096,
+    "population_AF": 4096,
+    "clinical_significance": 4096
+  },
+  "structural_problems": [],
+  "cases": [
+    {
+      "case_id": "case_01",
+      "split": "development",
+      "chromosomes": [
+        "chr15"
+      ],
+      "variants": 406,
+      "unique_variants": 406,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 406
+      },
+      "genotypes": {
+        "0/1": 246,
+        "1/1": 160
+      },
+      "vcf_records": 406,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 406,
+        "FILTER": 406,
+        "INFO": 406
+      },
+      "annotation_missing": {
+        "gene": 406,
+        "consequence": 406,
+        "population_AF": 406,
+        "clinical_significance": 406
+      },
+      "positive_hpo": 15,
+      "excluded_hpo": 6,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "FEMALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_01",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": {
+        "case_id": "case_01",
+        "split": "development",
+        "disease_id": "OMIM:616914",
+        "causal_gene": "FBN1",
+        "causal_variant": "chr15:48412568:C:A",
+        "genome_assembly": "GRCh38",
+        "allelic_state": "heterozygous",
+        "inheritance": "not_independently_curated",
+        "expected_answer": "chr15:48412568:C:A",
+        "evidence": "Phenopacket SOLVED / CAUSATIVE; original publication not independently reviewed",
+        "source_url": "https://pubmed.ncbi.nlm.nih.gov/21594993"
+      },
+      "label_variant_present": true,
+      "label_genotypes": [
+        "0/1"
+      ]
+    },
+    {
+      "case_id": "case_02",
+      "split": "development",
+      "chromosomes": [
+        "chr12"
+      ],
+      "variants": 408,
+      "unique_variants": 408,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 408
+      },
+      "genotypes": {
+        "0/1": 247,
+        "1/1": 160,
+        "1/0": 1
+      },
+      "vcf_records": 408,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 408,
+        "FILTER": 408,
+        "INFO": 408
+      },
+      "annotation_missing": {
+        "gene": 408,
+        "consequence": 408,
+        "population_AF": 408,
+        "clinical_significance": 408
+      },
+      "positive_hpo": 15,
+      "excluded_hpo": 0,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "MALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_02",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": {
+        "case_id": "case_02",
+        "split": "development",
+        "disease_id": "OMIM:163950",
+        "causal_gene": "PTPN11",
+        "causal_variant": "chr12:112472968:C:T",
+        "genome_assembly": "GRCh38",
+        "allelic_state": "heterozygous",
+        "inheritance": "not_independently_curated",
+        "expected_answer": "chr12:112472968:C:T",
+        "evidence": "Phenopacket SOLVED / CAUSATIVE; original publication not independently reviewed",
+        "source_url": "https://pubmed.ncbi.nlm.nih.gov/28074573"
+      },
+      "label_variant_present": true,
+      "label_genotypes": [
+        "0/1"
+      ]
+    },
+    {
+      "case_id": "case_03",
+      "split": "development",
+      "chromosomes": [
+        "chr12"
+      ],
+      "variants": 408,
+      "unique_variants": 408,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 408
+      },
+      "genotypes": {
+        "0/1": 247,
+        "1/1": 160,
+        "1/0": 1
+      },
+      "vcf_records": 408,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 408,
+        "FILTER": 408,
+        "INFO": 408
+      },
+      "annotation_missing": {
+        "gene": 408,
+        "consequence": 408,
+        "population_AF": 408,
+        "clinical_significance": 408
+      },
+      "positive_hpo": 26,
+      "excluded_hpo": 12,
+      "features_with_onset": 3,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "FEMALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_03",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": {
+        "case_id": "case_03",
+        "split": "development",
+        "disease_id": "OMIM:147920",
+        "causal_gene": "KMT2D",
+        "causal_variant": "chr12:49034233:A:G",
+        "genome_assembly": "GRCh38",
+        "allelic_state": "heterozygous",
+        "inheritance": "not_independently_curated",
+        "expected_answer": "chr12:49034233:A:G",
+        "evidence": "Phenopacket SOLVED / CAUSATIVE; original publication not independently reviewed",
+        "source_url": "https://pubmed.ncbi.nlm.nih.gov/32083401"
+      },
+      "label_variant_present": true,
+      "label_genotypes": [
+        "0/1"
+      ]
+    },
+    {
+      "case_id": "case_04",
+      "split": "development",
+      "chromosomes": [
+        "chr10"
+      ],
+      "variants": 407,
+      "unique_variants": 407,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 407
+      },
+      "genotypes": {
+        "0/1": 232,
+        "1/1": 174,
+        "1/0": 1
+      },
+      "vcf_records": 407,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 407,
+        "FILTER": 407,
+        "INFO": 407
+      },
+      "annotation_missing": {
+        "gene": 407,
+        "consequence": 407,
+        "population_AF": 407,
+        "clinical_significance": 407
+      },
+      "positive_hpo": 16,
+      "excluded_hpo": 4,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "MALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_04",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": {
+        "case_id": "case_04",
+        "split": "development",
+        "disease_id": "OMIM:101200",
+        "causal_gene": "FGFR2",
+        "causal_variant": "chr10:121520163:G:C",
+        "genome_assembly": "GRCh38",
+        "allelic_state": "heterozygous",
+        "inheritance": "not_independently_curated",
+        "expected_answer": "chr10:121520163:G:C",
+        "evidence": "Phenopacket SOLVED / CAUSATIVE; original publication not independently reviewed",
+        "source_url": "https://pubmed.ncbi.nlm.nih.gov/23546041"
+      },
+      "label_variant_present": true,
+      "label_genotypes": [
+        "0/1"
+      ]
+    },
+    {
+      "case_id": "case_05",
+      "split": "development",
+      "chromosomes": [
+        "chr1"
+      ],
+      "variants": 415,
+      "unique_variants": 415,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 415
+      },
+      "genotypes": {
+        "1/1": 175,
+        "0/1": 240
+      },
+      "vcf_records": 415,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 415,
+        "FILTER": 415,
+        "INFO": 415
+      },
+      "annotation_missing": {
+        "gene": 415,
+        "consequence": 415,
+        "population_AF": 415,
+        "clinical_significance": 415
+      },
+      "positive_hpo": 24,
+      "excluded_hpo": 1,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "MALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_05",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": {
+        "case_id": "case_05",
+        "split": "development",
+        "disease_id": "OMIM:176670",
+        "causal_gene": "LMNA",
+        "causal_variant": "chr1:156138613:C:T",
+        "genome_assembly": "GRCh38",
+        "allelic_state": "heterozygous",
+        "inheritance": "not_independently_curated",
+        "expected_answer": "chr1:156138613:C:T",
+        "evidence": "Phenopacket SOLVED / CAUSATIVE; original publication not independently reviewed",
+        "source_url": "https://pubmed.ncbi.nlm.nih.gov/18256394"
+      },
+      "label_variant_present": true,
+      "label_genotypes": [
+        "0/1"
+      ]
+    },
+    {
+      "case_id": "case_06",
+      "split": "development",
+      "chromosomes": [
+        "chr3"
+      ],
+      "variants": 415,
+      "unique_variants": 415,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 415
+      },
+      "genotypes": {
+        "0/1": 259,
+        "1/1": 155,
+        "1/0": 1
+      },
+      "vcf_records": 415,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 415,
+        "FILTER": 415,
+        "INFO": 415
+      },
+      "annotation_missing": {
+        "gene": 415,
+        "consequence": 415,
+        "population_AF": 415,
+        "clinical_significance": 415
+      },
+      "positive_hpo": 30,
+      "excluded_hpo": 5,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "MALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_06",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": {
+        "case_id": "case_06",
+        "split": "development",
+        "disease_id": "OMIM:610168",
+        "causal_gene": "TGFBR2",
+        "causal_variant": "chr3:30672252:G:T",
+        "genome_assembly": "GRCh38",
+        "allelic_state": "heterozygous",
+        "inheritance": "not_independently_curated",
+        "expected_answer": "chr3:30672252:G:T",
+        "evidence": "Phenopacket SOLVED / CAUSATIVE; original publication not independently reviewed",
+        "source_url": "https://pubmed.ncbi.nlm.nih.gov/15731757"
+      },
+      "label_variant_present": true,
+      "label_genotypes": [
+        "0/1"
+      ]
+    },
+    {
+      "case_id": "case_07",
+      "split": "hidden",
+      "chromosomes": [
+        "chr2"
+      ],
+      "variants": 412,
+      "unique_variants": 412,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 412
+      },
+      "genotypes": {
+        "0/1": 228,
+        "1/1": 182,
+        "1/0": 2
+      },
+      "vcf_records": 412,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 412,
+        "FILTER": 412,
+        "INFO": 412
+      },
+      "annotation_missing": {
+        "gene": 412,
+        "consequence": 412,
+        "population_AF": 412,
+        "clinical_significance": 412
+      },
+      "positive_hpo": 23,
+      "excluded_hpo": 0,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "UNKNOWN_SEX",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_07",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": null,
+      "label_variant_present": null,
+      "label_genotypes": []
+    },
+    {
+      "case_id": "case_08",
+      "split": "hidden",
+      "chromosomes": [
+        "chr9"
+      ],
+      "variants": 415,
+      "unique_variants": 415,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 415
+      },
+      "genotypes": {
+        "0/1": 267,
+        "1/1": 147,
+        "1/0": 1
+      },
+      "vcf_records": 415,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 415,
+        "FILTER": 415,
+        "INFO": 415
+      },
+      "annotation_missing": {
+        "gene": 415,
+        "consequence": 415,
+        "population_AF": 415,
+        "clinical_significance": 415
+      },
+      "positive_hpo": 5,
+      "excluded_hpo": 0,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "UNKNOWN_SEX",
+      "phenotype_truncated": true,
+      "metadata": {
+        "case_id": "case_08",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": true
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": null,
+      "label_variant_present": null,
+      "label_genotypes": []
+    },
+    {
+      "case_id": "case_09",
+      "split": "hidden",
+      "chromosomes": [
+        "chr7"
+      ],
+      "variants": 407,
+      "unique_variants": 407,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 407
+      },
+      "genotypes": {
+        "0/1": 271,
+        "1/1": 135,
+        "1/0": 1
+      },
+      "vcf_records": 407,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 407,
+        "FILTER": 407,
+        "INFO": 407
+      },
+      "annotation_missing": {
+        "gene": 407,
+        "consequence": 407,
+        "population_AF": 407,
+        "clinical_significance": 407
+      },
+      "positive_hpo": 5,
+      "excluded_hpo": 0,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "UNKNOWN_SEX",
+      "phenotype_truncated": true,
+      "metadata": {
+        "case_id": "case_09",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": true
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": null,
+      "label_variant_present": null,
+      "label_genotypes": []
+    },
+    {
+      "case_id": "case_10",
+      "split": "hidden",
+      "chromosomes": [
+        "chr18"
+      ],
+      "variants": 403,
+      "unique_variants": 403,
+      "duplicate_variants": 0,
+      "variant_types": {
+        "SNV": 403
+      },
+      "genotypes": {
+        "0/1": 233,
+        "1/1": 169,
+        "1/0": 1
+      },
+      "vcf_records": 403,
+      "vcf_tsv_match_including_genotype": true,
+      "vcf_unavailable_fields": {
+        "QUAL": 403,
+        "FILTER": 403,
+        "INFO": 403
+      },
+      "annotation_missing": {
+        "gene": 403,
+        "consequence": 403,
+        "population_AF": 403,
+        "clinical_significance": 403
+      },
+      "positive_hpo": 20,
+      "excluded_hpo": 7,
+      "features_with_onset": 0,
+      "duplicate_hpo_ids": 0,
+      "contradictory_hpo_ids": [],
+      "invalid_hpo_ids": [],
+      "invalid_variant_rows": [],
+      "sex": "FEMALE",
+      "phenotype_truncated": false,
+      "metadata": {
+        "case_id": "case_10",
+        "genome_assembly": "GRCh38",
+        "data_type": "synthetic composite genotype",
+        "background": "GIAB HG002 v4.2.1",
+        "clinical_source": "Phenopacket Store 0.1.11 via Zenodo 14679713",
+        "hpo_version": "2026-09-01",
+        "reference_validation": "NOT_RUN_user_accepted_source_REF",
+        "functional_annotation": "NOT_AVAILABLE",
+        "phenotype_truncated": false
+      },
+      "phenotype_top_level_fields": [
+        "id",
+        "phenotypicFeatures",
+        "sex"
+      ],
+      "variant_columns": [
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "genotype",
+        "variant_type",
+        "gene",
+        "consequence",
+        "population_AF",
+        "clinical_significance"
+      ],
+      "object_counts_match": true,
+      "case_ids_match": true,
+      "object_chromosome_matches": true,
+      "label": null,
+      "label_variant_present": null,
+      "label_genotypes": []
+    }
+  ],
+  "overlaps": [
+    {
+      "a": "case_02",
+      "b": "case_03",
+      "shared_variants": 406,
+      "identical_variant_sets": false
+    }
+  ]
+}

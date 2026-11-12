@@ -1,0 +1,203 @@
+"""Deterministic experts. Scores are heuristic support, never disease probabilities."""
+from __future__ import annotations
+
+import hashlib
+
+from .knowledge import Knowledge
+from .models import Case, Variant
+
+
+CONSEQUENCE_SUPPORT = {
+    'stop_gained': 0.9, 'frameshift_variant': 0.9,
+    'splice_acceptor_variant': 0.85, 'splice_donor_variant': 0.85,
+    'start_lost': 0.75, 'stop_lost': 0.7,
+    'missense_variant': 0.55, 'protein_altering_variant': 0.5,
+    'splice_region_variant': 0.35, 'synonymous_variant': 0.1,
+    'intron_variant': 0.08, 'intergenic_variant': 0.02,
+    '3_prime_UTR_variant': 0.1, '5_prime_UTR_variant': 0.1,
+}
+
+
+def evidence(subject: str, criterion: str, text: str, source: str, basis: str) -> dict:
+    identity = f'{subject}|{criterion}|{text}|{source}'
+    return {'id': 'ev_' + hashlib.sha256(identity.encode()).hexdigest()[:16],
+            'criterion': criterion, 'text': text, 'source': source, 'basis': basis}
+
+
+def clinical_support(significance: list[str]) -> tuple[str, float]:
+    """Interpret supplied labels; never derive ACMG criteria from an aggregate label.
+
+    VUS, conflicts and unrecognized classifications supply no positive pathogenicity
+    support. Neutrality does not imply a benign classification.
+    """
+    terms = {part.strip().lower().replace('_', ' ')
+             for value in significance for part in value.split('/')}
+    pathogenic = bool(terms & {'pathogenic', 'likely pathogenic'})
+    benign = bool(terms & {'benign', 'likely benign'})
+    if pathogenic and benign or any('conflict' in term for term in terms):
+        return 'conflicting', 0.0
+    if pathogenic:
+        return ('pathogenic' if 'pathogenic' in terms else 'likely_pathogenic'), 0.8
+    if benign:
+        return ('benign' if 'benign' in terms else 'likely_benign'), 0.0
+    if 'uncertain significance' in terms:
+        return 'uncertain_significance', 0.0
+    return ('not_actionable' if terms else 'unavailable'), 0.0
+
+
+class PhenotypeExpert:
+    def __init__(self, knowledge: Knowledge):
+        self.kb = knowledge
+        self.cache = {}
+
+    def assess(self, case: Case, gene: str) -> dict:
+        return self.hypotheses(case, gene)[0]
+
+    def hypotheses(self, case: Case, gene: str) -> list[dict]:
+        # Cache includes profile content: changing HPO terms cannot reuse a stale score.
+        key = (gene, tuple(sorted(case.positive_hpo)), tuple(sorted(case.excluded_hpo)))
+        if key in self.cache:
+            return self.cache[key]
+        diseases = self.kb.gene_diseases.get(gene, set())
+        if not diseases or not case.positive_hpo:
+            return [{'score': None, 'disease_id': None, 'disease_name': None,
+                    'evidence': [], 'missing': ['No disease associations or positive phenotype'],
+                    'matches': [], 'conflicts': []}]
+        possibilities = [self._disease(case, gene, self.kb.diseases[d]) for d in sorted(diseases)]
+        possibilities.sort(key=lambda result: (-(result['score'] if result['score'] is not None else -1),
+                                                result['disease_id']))
+        self.cache[key] = possibilities
+        return possibilities
+
+    def _disease(self, case: Case, gene: str, disease: dict) -> dict:
+        source = f"HPO:{disease['id']}"
+        subject = f"{gene}:{disease['id']}"
+        weights, total, matches, conflicts, items = 0.0, 0.0, [], [], []
+        unknown = []
+        for term, label in case.positive_hpo.items():
+            resolved = self.kb.resolve(term)
+            if resolved not in self.kb.parents or self.kb.ic(resolved) <= 0:
+                unknown.append(term)
+                continue
+            weight = self.kb.ic(resolved)
+            ancestors = self.kb.ancestors(resolved)
+            common = ancestors & disease['expanded']
+            shared = max(common, key=lambda t: (self.kb.ic(t), t)) if common else None
+            similarity = min(1.0, self.kb.ic(shared) / weight) if shared else 0.0
+            total += weight * similarity
+            weights += weight
+            if shared and similarity > 0:
+                matches.append({'query': term, 'shared_ancestor': shared, 'similarity': round(similarity, 6)})
+                items.append(evidence(subject, 'phenotype_match',
+                    f'{label} ({term}): соответствие профилю {disease["id"]} '
+                    f'через {self.kb.labels.get(shared, shared)} ({shared}).', source, 'database'))
+            if any(negative in ancestors for negative in disease.get('negative', set())):
+                conflicts.append({'term': term, 'kind': 'disease_excludes_observed_feature'})
+        for term, label in case.excluded_hpo.items():
+            resolved = self.kb.resolve(term)
+            # A patient-level exclusion is a warning: variable penetrance prevents hard vetoes.
+            if resolved in disease['expanded']:
+                conflicts.append({'term': term, 'kind': 'patient_excludes_disease_feature'})
+                items.append(evidence(subject, 'phenotype_conflict',
+                    f'{label} ({term}) явно отсутствует в случае, но указан в профиле '
+                    f'{disease["id"]}; возможна вариабельность проявлений.', source, 'database'))
+        score = max(0.0, total / weights - min(0.2, 0.04 * len(conflicts))) if weights else None
+        return {'score': score, 'disease_id': disease['id'], 'disease_name': disease['name'],
+                'matches': matches, 'conflicts': conflicts, 'evidence': items,
+                'missing': [f'HPO term unavailable or uninformative: {term}' for term in unknown]}
+
+
+class MolecularExpert:
+    def assess(self, variant: Variant, annotation: dict, gene: str | None) -> dict:
+        if annotation.get('status') != 'annotated':
+            return {'score': None, 'evidence': [], 'missing': ['Variant annotation unavailable'],
+                    'selected_transcript': None, 'consequences': [], 'components': {}}
+        subject = f'{variant.id}:{gene or "intergenic"}'
+        source = f'VEP:{variant.cache_key}'
+        items, missing = [], []
+        transcripts = [t for t in annotation['transcripts'] if t.get('gene_symbol') == gene] if gene else []
+        overlapping = [t for t in transcripts if set(t.get('consequence_terms') or [])
+                       - {'upstream_gene_variant', 'downstream_gene_variant'}]
+        relevant = overlapping or transcripts
+        preferred = [t for t in relevant if t.get('mane_select')]
+        selection = 'overlapping MANE Select'
+        if not preferred:
+            preferred = [t for t in relevant if t.get('mane_plus_clinical')]
+            selection = 'overlapping MANE Plus Clinical'
+        if not preferred:
+            preferred = [t for t in relevant if t.get('canonical') and t.get('biotype') == 'protein_coding']
+            selection = 'canonical protein-coding'
+        if not preferred:
+            preferred = [t for t in relevant if t.get('biotype') == 'protein_coding'] or relevant
+            selection = 'available transcript'
+        selected = max(preferred, key=lambda t: max(
+            (CONSEQUENCE_SUPPORT.get(c, 0.15) for c in t.get('consequence_terms') or []), default=0.0)) if preferred else None
+        consequences = selected.get('consequence_terms') or [] if selected else [annotation.get('most_severe_consequence') or 'unknown']
+        consequence_score = max((CONSEQUENCE_SUPPORT.get(c, 0.15) for c in consequences), default=0.0)
+        items.append(evidence(subject, 'consequence',
+            f'Предполагаемое последствие: {", ".join(consequences)}; '
+            f'транскрипт: {selected.get("transcript_id") if selected else "не определён"} '
+            f'({selection}). Само по себе не устанавливает патогенность.', source, 'prediction'))
+        frequency = annotation.get('gnomad_max_af')
+        frequency_score = 0.0
+        if frequency is None:
+            missing.append('gnomAD frequency unavailable; not assumed zero')
+        else:
+            frequency_score = 1.0 if frequency < 0.0001 else 0.5 if frequency < 0.001 else 0.0
+            items.append(evidence(subject, 'population_frequency',
+                f'Максимальная доступная частота gnomAD: {frequency:.6g}. '
+                'Редкость не является самостоятельным доказательством патогенности.', source, 'database'))
+        significance = sorted({value.lower().replace('_', ' ')
+                               for record in annotation.get('clinical', []) for value in record['significance']})
+        clinical_status, clinical_score = clinical_support(significance)
+        conflict = clinical_status == 'conflicting'
+        if significance:
+            neutrality = (' VUS, конфликт или непатогенная/неподдерживаемая категория '
+                          'не добавляют положительной поддержки патогенности.'
+                          if clinical_score == 0 else '')
+            items.append(evidence(subject, 'clinical_annotation',
+                f'Клиническая аннотация Ensembl: {", ".join(significance)}. '
+                'Заболевание и статус экспертной проверки ClinVar отдельно не получены.'
+                + neutrality, source, 'database'))
+            missing.append('Condition-specific ClinVar assertion and review status not retrieved')
+        else:
+            missing.append('Allele-specific clinical interpretation unavailable')
+        components = {'consequence': consequence_score, 'frequency': frequency_score,
+                      'clinical': clinical_score}
+        # Missing evidence contributes no support. This is not a benign classification.
+        score = 0.55 * consequence_score + 0.15 * frequency_score + 0.30 * clinical_score
+        return {'score': score, 'evidence': items, 'missing': missing,
+                'selected_transcript': selected.get('transcript_id') if selected else None,
+                'transcript_selection': selection, 'consequences': consequences,
+                'components': components, 'clinical_conflict': bool(conflict),
+                'clinical_status': clinical_status}
+
+
+class InheritanceExpert:
+    def __init__(self, knowledge: Knowledge):
+        self.kb = knowledge
+
+    def assess(self, variant: Variant, disease_id: str | None) -> dict:
+        disease = self.kb.diseases.get(disease_id)
+        modes = sorted(disease['inheritance']) if disease else []
+        if not modes or variant.genotype in {'./.', '.|.'}:
+            return {'score': None, 'modes': modes, 'evidence': [],
+                    'missing': ['Inheritance mode or genotype unavailable']}
+        scores, explanations = [], []
+        if 'AD' in modes:
+            scores.append(1.0 if variant.heterozygous else 0.5)
+            explanations.append('Генотип совместим с гетерозиготной моделью AD.' if variant.heterozygous
+                                else 'Гомозиготный генотип требует отдельной проверки для AD-модели.')
+        if 'AR' in modes:
+            scores.append(1.0 if variant.homozygous_alt else 0.2)
+            explanations.append('Гомозиготный альтернативный генотип совместим с AR-моделью.'
+                                if variant.homozygous_alt else
+                                'Одна гетерозиготная запись не подтверждает AR-модель; второй аллель и фаза не установлены.')
+        if not scores:
+            return {'score': None, 'modes': modes, 'evidence': [],
+                    'missing': ['Inheritance model is outside the autosomal baseline']}
+        text = ' '.join(explanations) + ' Семейная сегрегация и происхождение de novo не подтверждены.'
+        return {'score': max(scores), 'modes': modes, 'evidence': [evidence(
+            variant.id + ':' + str(disease_id), 'inheritance', text,
+            f'HPO:{disease_id}', 'compatibility')],
+            'missing': ['Family segregation and phase unavailable']}

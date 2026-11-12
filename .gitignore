@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+.secrets/
+data/cache/
+data/knowledge/
+outputs/
+.pytest_cache/
